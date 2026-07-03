@@ -163,15 +163,15 @@ export default function App() {
                       className="absolute inset-4 rounded-full bg-transparent border-[0.5px] border-white/10 overflow-hidden flex items-center justify-center backdrop-blur-sm"
                       animate={{ 
                         scale: isConnecting ? [0.98, 1.02, 0.98] : 1,
-                        borderColor: isConnecting ? ['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)'] : 'rgba(255,255,255,0.1)'
+                        borderColor: isConnecting ? ['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.5)', 'rgba(255,255,255,0.2)'] : 'rgba(255,255,255,0.15)'
                       }}
                       transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                     >
-                      <Moon className={`w-6 h-6 transition-all duration-1000 ${isConnecting ? 'text-white/90 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]' : 'text-white/40 group-hover:text-white/80'}`} strokeWidth={0.5} />
+                      <Moon className={`w-7 h-7 transition-all duration-1000 ${isConnecting ? 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]' : 'text-white/60 group-hover:text-white'}`} strokeWidth={0.5} />
                     </motion.div>
 
                     <div className="absolute -bottom-12 flex flex-col items-center justify-center">
-                      <span className={`text-[12px] tracking-[0.5em] uppercase font-light transition-colors duration-1000 ${isConnecting ? 'text-white/90 drop-shadow-sm' : 'text-white/40 group-hover:text-white/80'}`}>
+                      <span className={`text-sm tracking-[0.3em] uppercase font-normal transition-colors duration-1000 ${isConnecting ? 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.6)]' : 'text-white/70 group-hover:text-white'}`}>
                         {isConnecting ? '唤醒中' : '触碰以连接'}
                       </span>
                     </div>
