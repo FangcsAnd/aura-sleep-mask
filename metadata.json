@@ -1,0 +1,6 @@
+{
+  "name": "Aura Sleep Mask",
+  "description": "Immersive companion app for the smart light therapy eye mask, featuring breathable light modes, alarms, and jet lag adjustment.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
