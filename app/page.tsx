@@ -385,7 +385,7 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
       ctx.fillStyle = `rgba(3, 3, 5, ${0.08 + (1 - currentBreathValue) * 0.12})`; 
       ctx.fillRect(0, 0, width, height);
 
-      ctx.globalCompositeOperation = 'screen';
+      ctx.globalCompositeOperation = 'lighter';
       const intensity = 0.6 + currentBreathValue * 0.4;
       ctx.fillStyle = `rgba(${Math.round(currentColor.r)}, ${Math.round(currentColor.g)}, ${Math.round(currentColor.b)}, ${intensity})`;
 
@@ -427,7 +427,7 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
         const dy = 0.5 - y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist > 0.01) {
-          const force = breathDerivative * -0.5; // push out on inhale, pull in on exhale
+          const force = breathDerivative * -0.5;
           x += (dx / dist) * force * fpsRatio;
           y += (dy / dist) * force * fpsRatio;
         }
@@ -448,7 +448,6 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
         const dfdx = a * currentN * Math.PI * cosNX * sinMY + b * currentM * Math.PI * cosMX * sinNY;
         const dfdy = a * currentM * Math.PI * sinNX * cosMY + b * currentN * Math.PI * sinMX * cosNY;
 
-        // Gradient descent towards f=0 (nodal lines)
         x -= f * dfdx * stepSize;
         y -= f * dfdy * stepSize;
 
@@ -458,8 +457,10 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
         const screenX = offsetX + x * size;
         const screenY = offsetY + y * size;
         
-        ctx.fillRect(screenX, screenY, 2.5, 2.5);
+        ctx.moveTo(screenX + 1.4, screenY);
+        ctx.arc(screenX, screenY, 1.4, 0, Math.PI * 2);
       }
+      ctx.fill();
 
       // Add a subtle vignette/glow overlay
       const gradient = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, size/1.5);
