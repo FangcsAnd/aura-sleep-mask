@@ -1,6 +1,7 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
+  basePath: '/aura-sleep-mask',
   reactStrictMode: true,
   eslint: {
     ignoreDuringBuilds: true,
@@ -8,7 +9,6 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-  basePath: '/aura-sleep-mask',
   images: {
     unoptimized: true,
   },
