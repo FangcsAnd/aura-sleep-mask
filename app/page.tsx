@@ -137,7 +137,7 @@ export default function App() {
                     <img 
                       src="logo.png" 
                       alt="Dreamlight" 
-                      className="h-12 md:h-16 w-auto mx-auto drop-shadow-sm opacity-90"
+                      className="h-16 md:h-20 w-auto mx-auto opacity-100"
                     />
                     <p className="text-[12px] tracking-[0.6em] uppercase text-white/60 font-light drop-shadow-md">
                       沉浸式声光共振
