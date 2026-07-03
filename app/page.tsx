@@ -283,16 +283,32 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
     if (!ctx) return;
 
     let animationFrameId: number;
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-    canvas.width = width;
-    canvas.height = height;
+    const dpr = window.devicePixelRatio || 1;
+    const cssWidth = window.innerWidth;
+    const cssHeight = window.innerHeight;
+    canvas.width = cssWidth * dpr;
+    canvas.height = cssHeight * dpr;
+    canvas.style.width = cssWidth + 'px';
+    canvas.style.height = cssHeight + 'px';
+    ctx.scale(dpr, dpr);
+    let width = cssWidth;
+    let height = cssHeight;
 
     const numParticles = 80000;
     const particles = new Float32Array(numParticles * 2);
+    const noise = new Float32Array(numParticles * 2);
     for (let i = 0; i < numParticles * 2; i++) {
        particles[i] = Math.random();
     }
+    let noiseIdx = 0;
+
+    const fillNoise = () => {
+      for (let i = 0; i < numParticles * 2; i++) {
+        noise[i] = (Math.random() - 0.5) * 2;
+      }
+      noiseIdx = 0;
+    };
+    fillNoise();
 
     const modeConfigs: Record<Mode, { n: number, m: number, color: {r:number, g:number, b:number} }> = {
       off: { n: 2, m: 3, color: { r: 30, g: 58, b: 138 } },
@@ -316,14 +332,17 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
       resizeTimer = setTimeout(() => {
         width = window.innerWidth;
         height = window.innerHeight;
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }, 200);
     };
     window.addEventListener('resize', handleResize);
 
     const render = (time: number) => {
-      const dt = Math.min(time - lastTime, 50); // cap delta time
+      const dt = Math.min(time - lastTime, 50);
       lastTime = time;
       const fpsRatio = dt / (1000 / 60);
 
@@ -389,9 +408,13 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
         let x = particles[i*2];
         let y = particles[i*2 + 1];
 
-        // Browninan noise to keep particles alive
-        x += (Math.random() - 0.5) * vibration * fpsRatio;
-        y += (Math.random() - 0.5) * vibration * fpsRatio;
+        // Brownian noise from precomputed buffer
+        x += noise[noiseIdx] * vibration * fpsRatio;
+        y += noise[noiseIdx + 1] * vibration * fpsRatio;
+        noiseIdx += 2;
+        if (noiseIdx >= numParticles * 2) {
+          fillNoise();
+        }
 
         // Torus wrapping
         if (x < 0) x += 1;
