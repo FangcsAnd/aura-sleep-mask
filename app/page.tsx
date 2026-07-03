@@ -39,7 +39,7 @@ export default function App() {
       setBatteryLevel(85);
       setActiveMode('mindfulness');
       triggerHaptic('heavy');
-    }, 3000);
+    }, 1000);
   };
 
   useEffect(() => {
@@ -135,9 +135,9 @@ export default function App() {
                 >
                   <div className="text-center space-y-6">
                     <img 
-                      src="logo.png" 
+                      src="/logo.png" 
                       alt="Dreamlight" 
-                      className="h-16 md:h-20 w-auto mx-auto opacity-100"
+                      className="h-12 md:h-16 w-auto mx-auto drop-shadow-sm opacity-90"
                     />
                     <p className="text-[12px] tracking-[0.6em] uppercase text-white/60 font-light drop-shadow-md">
                       沉浸式声光共振
@@ -160,18 +160,18 @@ export default function App() {
                     />
 
                     <motion.div
-                      className="absolute inset-4 rounded-full bg-transparent border-[0.5px] border-white/10 overflow-hidden flex items-center justify-center backdrop-blur-sm"
+                      className="absolute inset-4 rounded-full bg-transparent border-[0.5px] border-white/20 overflow-hidden flex items-center justify-center backdrop-blur-sm"
                       animate={{ 
                         scale: isConnecting ? [0.98, 1.02, 0.98] : 1,
-                        borderColor: isConnecting ? ['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.5)', 'rgba(255,255,255,0.2)'] : 'rgba(255,255,255,0.15)'
+                        borderColor: isConnecting ? ['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.5)', 'rgba(255,255,255,0.2)'] : 'rgba(255,255,255,0.2)'
                       }}
                       transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                     >
-                      <Moon className={`w-7 h-7 transition-all duration-1000 ${isConnecting ? 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]' : 'text-white/60 group-hover:text-white'}`} strokeWidth={0.5} />
+                      <Moon className={`w-6 h-6 transition-all duration-1000 ${isConnecting ? 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]' : 'text-white/70 group-hover:text-white'}`} strokeWidth={0.5} />
                     </motion.div>
 
                     <div className="absolute -bottom-12 flex flex-col items-center justify-center">
-                      <span className={`text-sm tracking-[0.3em] uppercase font-normal transition-colors duration-1000 ${isConnecting ? 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.6)]' : 'text-white/70 group-hover:text-white'}`}>
+                      <span className={`text-[12px] tracking-[0.5em] uppercase font-light transition-colors duration-1000 ${isConnecting ? 'text-white drop-shadow-sm' : 'text-white/70 group-hover:text-white'}`}>
                         {isConnecting ? '唤醒中' : '触碰以连接'}
                       </span>
                     </div>
@@ -180,9 +180,9 @@ export default function App() {
               ) : (
                 <motion.div 
                   key="app"
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 1.5, delay: 0.2 }}
+                  transition={{ duration: 0.8, delay: 0 }}
                   className="h-full flex flex-col justify-center max-w-sm mx-auto w-full"
                 >
                   {activeTab === 'therapy' && (
@@ -283,32 +283,22 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
     if (!ctx) return;
 
     let animationFrameId: number;
-    const dpr = window.devicePixelRatio || 1;
-    const cssWidth = window.innerWidth;
-    const cssHeight = window.innerHeight;
-    canvas.width = cssWidth * dpr;
-    canvas.height = cssHeight * dpr;
-    canvas.style.width = cssWidth + 'px';
-    canvas.style.height = cssHeight + 'px';
-    ctx.scale(dpr, dpr);
-    let width = cssWidth;
-    let height = cssHeight;
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    let dpr = window.devicePixelRatio || 1;
+    
+    const setCanvasSize = () => {
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      ctx.scale(dpr, dpr);
+    };
+    setCanvasSize();
 
-    const numParticles = 80000;
+    const numParticles = 40000;
     const particles = new Float32Array(numParticles * 2);
-    const noise = new Float32Array(numParticles * 2);
     for (let i = 0; i < numParticles * 2; i++) {
        particles[i] = Math.random();
     }
-    let noiseIdx = 0;
-
-    const fillNoise = () => {
-      for (let i = 0; i < numParticles * 2; i++) {
-        noise[i] = (Math.random() - 0.5) * 2;
-      }
-      noiseIdx = 0;
-    };
-    fillNoise();
 
     const modeConfigs: Record<Mode, { n: number, m: number, color: {r:number, g:number, b:number} }> = {
       off: { n: 2, m: 3, color: { r: 30, g: 58, b: 138 } },
@@ -332,17 +322,14 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
       resizeTimer = setTimeout(() => {
         width = window.innerWidth;
         height = window.innerHeight;
-        canvas.width = width * dpr;
-        canvas.height = height * dpr;
-        canvas.style.width = width + 'px';
-        canvas.style.height = height + 'px';
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        dpr = window.devicePixelRatio || 1;
+        setCanvasSize();
       }, 200);
     };
     window.addEventListener('resize', handleResize);
 
     const render = (time: number) => {
-      const dt = Math.min(time - lastTime, 50);
+      const dt = Math.min(time - lastTime, 50); // cap delta time
       lastTime = time;
       const fpsRatio = dt / (1000 / 60);
 
@@ -382,10 +369,10 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
 
       // Draw background with opacity for particle trail effect
       ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = `rgba(3, 3, 5, ${0.08 + (1 - currentBreathValue) * 0.12})`; 
+      ctx.fillStyle = `rgba(3, 3, 5, ${0.15 + (1 - currentBreathValue) * 0.15})`; 
       ctx.fillRect(0, 0, width, height);
 
-      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalCompositeOperation = 'screen';
       const intensity = 0.6 + currentBreathValue * 0.4;
       ctx.fillStyle = `rgba(${Math.round(currentColor.r)}, ${Math.round(currentColor.g)}, ${Math.round(currentColor.b)}, ${intensity})`;
 
@@ -400,7 +387,7 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
       const offsetX = (width - size) / 2;
       const offsetY = (height - size) / 2;
 
-      const vibration = targetMode === 'off' ? 0.001 : 0.001 + currentBreathValue * 0.008;
+      const vibration = targetMode === 'off' ? 0.002 : 0.003 + currentBreathValue * 0.008;
       const stepSize = 0.001 * fpsRatio;
 
       ctx.beginPath();
@@ -408,13 +395,9 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
         let x = particles[i*2];
         let y = particles[i*2 + 1];
 
-        // Brownian noise from precomputed buffer
-        x += noise[noiseIdx] * vibration * fpsRatio;
-        y += noise[noiseIdx + 1] * vibration * fpsRatio;
-        noiseIdx += 2;
-        if (noiseIdx >= numParticles * 2) {
-          fillNoise();
-        }
+        // Browninan noise to keep particles alive and prevent stacking
+        x += (Math.random() - 0.5) * vibration * fpsRatio;
+        y += (Math.random() - 0.5) * vibration * fpsRatio;
 
         // Torus wrapping
         if (x < 0) x += 1;
@@ -427,7 +410,7 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
         const dy = 0.5 - y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist > 0.01) {
-          const force = breathDerivative * -0.5;
+          const force = breathDerivative * -0.5; // push out on inhale, pull in on exhale
           x += (dx / dist) * force * fpsRatio;
           y += (dy / dist) * force * fpsRatio;
         }
@@ -448,8 +431,14 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
         const dfdx = a * currentN * Math.PI * cosNX * sinMY + b * currentM * Math.PI * cosMX * sinNY;
         const dfdy = a * currentM * Math.PI * sinNX * cosMY + b * currentN * Math.PI * sinMX * cosNY;
 
-        x -= f * dfdx * stepSize;
-        y -= f * dfdy * stepSize;
+        // Gradient descent towards f=0 (nodal lines), plus random respawn to prevent pure stacking
+        if (Math.random() < 0.001 * fpsRatio) {
+           x = Math.random();
+           y = Math.random();
+        } else {
+           x -= f * dfdx * stepSize;
+           y -= f * dfdy * stepSize;
+        }
 
         particles[i*2] = x;
         particles[i*2+1] = y;
@@ -457,8 +446,7 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
         const screenX = offsetX + x * size;
         const screenY = offsetY + y * size;
         
-        ctx.moveTo(screenX + 1.4, screenY);
-        ctx.arc(screenX, screenY, 1.4, 0, Math.PI * 2);
+        ctx.rect(screenX, screenY, 1.0, 1.0);
       }
       ctx.fill();
 
@@ -511,7 +499,6 @@ function TherapyView({ activeMode, setActiveMode, timerDuration, setTimerDuratio
           value={timerDuration}
           onChange={(e) => {
             const val = parseInt(e.target.value);
-            if (val !== timerDuration) triggerHaptic('light');
             setTimerDuration(val);
           }}
           className="w-64 max-w-[80%] h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent appearance-none outline-none cursor-pointer 
@@ -577,9 +564,9 @@ function AlarmsView() {
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 1.02 }}
-      className="flex flex-col space-y-6 h-full justify-center px-4"
+      className="flex flex-col h-[60vh] justify-start px-4 overflow-y-auto no-scrollbar"
     >
-      <div className="flex flex-col space-y-4 max-h-[60vh] overflow-y-auto no-scrollbar pb-10">
+      <div className="flex flex-col space-y-4 pb-6">
         {alarms.map(alarm => (
           <button 
             key={alarm.id}
@@ -641,7 +628,7 @@ function JetLagView() {
       initial={{ opacity: 0, x: 10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 10 }}
-      className="flex flex-col h-full overflow-y-auto no-scrollbar space-y-12 px-4 py-8 max-h-[70vh]"
+      className="flex flex-col overflow-y-auto no-scrollbar space-y-8 px-4 py-4 h-[60vh]"
     >
       <div className="flex flex-col space-y-10">
         <div className="flex items-end justify-between border-b border-white/10 pb-4">
