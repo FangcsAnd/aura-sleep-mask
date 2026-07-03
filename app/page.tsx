@@ -135,7 +135,7 @@ export default function App() {
                 >
                   <div className="text-center space-y-6">
                     <img 
-                      src="/logo.png" 
+                      src="logo.png" 
                       alt="Dreamlight" 
                       className="h-12 md:h-16 w-auto mx-auto drop-shadow-sm opacity-90"
                     />
