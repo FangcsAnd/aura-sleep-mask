@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
+  basePath: '/aura-sleep-mask',
   images: {
     unoptimized: true,
   },
