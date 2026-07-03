@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Battery, BatteryMedium, BatteryLow, Moon } from 'lucide-react';
 
@@ -24,8 +24,10 @@ export default function App() {
       else if (intensity === 'heavy') navigator.vibrate([30, 50, 30]);
       else navigator.vibrate(20);
     }
-    setScalePulse(intensity === 'heavy' ? 1.03 : 1.01);
-    setTimeout(() => setScalePulse(1), 150);
+    if (intensity !== 'light') {
+      setScalePulse(intensity === 'heavy' ? 1.03 : 1.01);
+      setTimeout(() => setScalePulse(1), 150);
+    }
   };
 
   const handleConnect = () => {
@@ -91,7 +93,7 @@ export default function App() {
         className={`absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity duration-1000 pointer-events-none z-0 ${activeTab !== 'therapy' ? 'opacity-100' : 'opacity-0'}`} 
       />
 
-      <div className={`absolute inset-0 flex flex-col z-10 transition-opacity duration-1000 ${showUI ? 'opacity-100' : 'opacity-0'}`}>
+      <div className={`absolute inset-0 flex flex-col z-10 transition-opacity duration-1000 ${showUI || activeTab !== 'therapy' ? 'opacity-100' : 'opacity-0'}`}>
         {/* Top Status Bar - Minimal Ethereal */}
         <header className="relative w-full px-8 py-8 flex justify-between items-center pointer-events-none">
           <div className="flex items-center space-x-3">
@@ -100,19 +102,19 @@ export default function App() {
               animate={{ opacity: isConnected ? [0.3, 1, 0.3] : 1 }}
               transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
             />
-            <span className="text-[8px] tracking-[0.4em] uppercase font-extralight text-white/50">
+            <span className="text-[12px] tracking-[0.4em] uppercase font-light text-white/90 drop-shadow-md">
               {isConnected ? 'Dreamlight 已连接' : 'Dreamlight 待命'}
             </span>
           </div>
           {isConnected && (
-            <div className="flex items-center space-x-3 text-white/50">
-              <span className="text-[8px] tracking-[0.3em] font-extralight">{batteryLevel}%</span>
+            <div className="flex items-center space-x-3 text-white/90 drop-shadow-md">
+              <span className="text-[12px] tracking-[0.3em] font-light">{batteryLevel}%</span>
               {batteryLevel > 70 ? (
-                <Battery className="w-3 h-3 opacity-60" strokeWidth={1} />
+                <Battery className="w-3.5 h-3.5 opacity-80" strokeWidth={1} />
               ) : batteryLevel > 30 ? (
-                <BatteryMedium className="w-3 h-3 opacity-60" strokeWidth={1} />
+                <BatteryMedium className="w-3.5 h-3.5 opacity-80" strokeWidth={1} />
               ) : (
-                <BatteryLow className="w-3 h-3 text-rose-400 opacity-60" strokeWidth={1} />
+                <BatteryLow className="w-3.5 h-3.5 text-rose-400 opacity-80" strokeWidth={1} />
               )}
             </div>
           )}
@@ -132,10 +134,12 @@ export default function App() {
                   className="absolute inset-0 flex flex-col items-center justify-center space-y-32"
                 >
                   <div className="text-center space-y-6">
-                    <h1 className="text-4xl font-display font-light tracking-[0.3em] text-transparent bg-clip-text bg-gradient-to-b from-white to-white/20 drop-shadow-sm">
-                      Dreamlight
-                    </h1>
-                    <p className="text-[8px] tracking-[0.6em] uppercase text-white/30 font-extralight">
+                    <img 
+                      src="/logo.png" 
+                      alt="Dreamlight" 
+                      className="h-12 md:h-16 w-auto mx-auto drop-shadow-sm opacity-90"
+                    />
+                    <p className="text-[12px] tracking-[0.6em] uppercase text-white/60 font-light drop-shadow-md">
                       沉浸式声光共振
                     </p>
                   </div>
@@ -163,11 +167,11 @@ export default function App() {
                       }}
                       transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                     >
-                      <Moon className={`w-6 h-6 transition-all duration-1000 ${isConnecting ? 'text-white/80 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]' : 'text-white/20 group-hover:text-white/50'}`} strokeWidth={0.5} />
+                      <Moon className={`w-6 h-6 transition-all duration-1000 ${isConnecting ? 'text-white/90 drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]' : 'text-white/40 group-hover:text-white/80'}`} strokeWidth={0.5} />
                     </motion.div>
 
                     <div className="absolute -bottom-12 flex flex-col items-center justify-center">
-                      <span className={`text-[8px] tracking-[0.5em] uppercase font-extralight transition-colors duration-1000 ${isConnecting ? 'text-white/80' : 'text-white/20 group-hover:text-white/50'}`}>
+                      <span className={`text-[12px] tracking-[0.5em] uppercase font-light transition-colors duration-1000 ${isConnecting ? 'text-white/90 drop-shadow-sm' : 'text-white/40 group-hover:text-white/80'}`}>
                         {isConnecting ? '唤醒中' : '触碰以连接'}
                       </span>
                     </div>
@@ -225,10 +229,10 @@ function NavButton({ label, isActive, onClick }: { label: string, isActive: bool
     <button
       onClick={onClick}
       className={`relative px-4 py-2 transition-all duration-1000 ${
-        isActive ? 'text-white' : 'text-white/30 hover:text-white/60'
+        isActive ? 'text-white' : 'text-white/50 hover:text-white/80'
       }`}
     >
-      <span className="text-[9px] font-extralight tracking-[0.4em] uppercase">{label}</span>
+      <span className="text-[12px] font-extralight tracking-[0.4em] uppercase">{label}</span>
       {isActive && (
         <motion.div 
           layoutId="navIndicator"
@@ -263,7 +267,7 @@ const breathProfiles: Record<Mode, BreathProfile> = {
   ]
 };
 
-function ChladniBackground({ mode, isConnected }: { mode: Mode, isConnected: boolean }) {
+const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnected }: { mode: Mode, isConnected: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const modeRef = useRef(mode);
   const isConnectedRef = useRef(isConnected);
@@ -284,7 +288,7 @@ function ChladniBackground({ mode, isConnected }: { mode: Mode, isConnected: boo
     canvas.width = width;
     canvas.height = height;
 
-    const numParticles = 15000;
+    const numParticles = 80000;
     const particles = new Float32Array(numParticles * 2);
     for (let i = 0; i < numParticles * 2; i++) {
        particles[i] = Math.random();
@@ -359,11 +363,11 @@ function ChladniBackground({ mode, isConnected }: { mode: Mode, isConnected: boo
 
       // Draw background with opacity for particle trail effect
       ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = `rgba(3, 3, 5, ${0.1 + (1 - currentBreathValue) * 0.15})`; 
+      ctx.fillStyle = `rgba(3, 3, 5, ${0.08 + (1 - currentBreathValue) * 0.12})`; 
       ctx.fillRect(0, 0, width, height);
 
       ctx.globalCompositeOperation = 'screen';
-      const intensity = 0.4 + currentBreathValue * 0.6;
+      const intensity = 0.6 + currentBreathValue * 0.4;
       ctx.fillStyle = `rgba(${Math.round(currentColor.r)}, ${Math.round(currentColor.g)}, ${Math.round(currentColor.b)}, ${intensity})`;
 
       // Breathing resonance parameters mapping a circle in phase space
@@ -431,7 +435,7 @@ function ChladniBackground({ mode, isConnected }: { mode: Mode, isConnected: boo
         const screenX = offsetX + x * size;
         const screenY = offsetY + y * size;
         
-        ctx.fillRect(screenX, screenY, 1.5, 1.5);
+        ctx.fillRect(screenX, screenY, 2.5, 2.5);
       }
 
       // Add a subtle vignette/glow overlay
@@ -453,7 +457,7 @@ function ChladniBackground({ mode, isConnected }: { mode: Mode, isConnected: boo
   }, []);
 
   return <canvas ref={canvasRef} className="fixed inset-0 z-0 w-full h-full object-cover" />;
-}
+});
 
 function TherapyView({ activeMode, setActiveMode, timerDuration, setTimerDuration, triggerHaptic }: any) {
   const modes = [
@@ -470,10 +474,10 @@ function TherapyView({ activeMode, setActiveMode, timerDuration, setTimerDuratio
       className="flex flex-col h-full justify-center relative w-full"
     >
       {/* Horizontal sleek timer slider */}
-      <div className="absolute bottom-16 left-0 right-0 flex flex-col items-center justify-center space-y-4 z-20 pointer-events-auto opacity-40 hover:opacity-100 transition-opacity duration-1000">
+      <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center justify-center space-y-4 z-20 pointer-events-auto opacity-40 hover:opacity-100 transition-opacity duration-1000">
         <div className="flex flex-col items-center space-y-1">
-          <span className="text-[10px] tracking-widest font-extralight text-white/50">定时关闭</span>
-          <span className="text-[8px] tracking-[0.4em] font-extralight text-white/70 uppercase">
+          <span className="text-[12px] tracking-widest font-extralight text-white/80">定时关闭</span>
+          <span className="text-[12px] tracking-[0.4em] font-extralight text-white uppercase">
             {timerDuration} MIN
           </span>
         </div>
@@ -503,7 +507,7 @@ function TherapyView({ activeMode, setActiveMode, timerDuration, setTimerDuratio
                 triggerHaptic('medium');
                 setActiveMode(isActive ? 'off' : mode.id);
               }}
-              className={`text-left group transition-all duration-1000 relative pl-8 py-2 w-max outline-none ${isActive ? 'opacity-100' : 'opacity-30 hover:opacity-60'}`}
+              className={`text-left group transition-all duration-1000 relative pl-8 py-2 w-max outline-none ${isActive ? 'opacity-100' : 'opacity-50 hover:opacity-90'}`}
             >
               {isActive && (
                 <motion.div 
@@ -511,11 +515,11 @@ function TherapyView({ activeMode, setActiveMode, timerDuration, setTimerDuratio
                   className="absolute left-0 top-1/2 -translate-y-1/2 h-[40%] w-[1px] bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)]"
                 />
               )}
-              <h2 className={`font-display tracking-[0.3em] transition-transform duration-1000 origin-left text-xl ${isActive ? 'font-light text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.4)] scale-110' : 'font-extralight text-white scale-100'}`}>
+              <h2 className={`font-display tracking-[0.3em] transition-transform duration-1000 origin-left text-2xl ${isActive ? 'font-normal text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] scale-110' : 'font-light text-white/90 drop-shadow-sm scale-100'}`}>
                 {mode.label}
               </h2>
               <div className={`overflow-hidden transition-all duration-1000 ease-out ${isActive ? 'max-h-8 opacity-100 mt-2' : 'max-h-0 opacity-0 mt-0'}`}>
-                <p className="text-[8px] tracking-[0.4em] text-white/50 font-extralight uppercase">
+                <p className="text-[12px] tracking-[0.4em] text-white/90 font-light uppercase drop-shadow-sm">
                   {mode.desc}
                 </p>
               </div>
@@ -529,9 +533,20 @@ function TherapyView({ activeMode, setActiveMode, timerDuration, setTimerDuratio
 
 function AlarmsView() {
   const [alarms, setAlarms] = useState([
-    { id: 1, time: '07:00', label: '晨间唤醒', active: true },
-    { id: 2, time: '08:30', label: '周末赖床', active: false },
+    { id: 1, time: '07:00', label: '晨间唤醒', active: true, repeat: '工作日' },
+    { id: 2, time: '08:30', label: '周末赖床', active: false, repeat: '周末' },
   ]);
+
+  const addAlarm = () => {
+    const newAlarm = {
+      id: Date.now(),
+      time: '06:00',
+      label: '新唤醒',
+      active: true,
+      repeat: '单次'
+    };
+    setAlarms([...alarms, newAlarm]);
+  };
 
   return (
     <motion.div
@@ -540,63 +555,84 @@ function AlarmsView() {
       exit={{ opacity: 0, scale: 1.02 }}
       className="flex flex-col space-y-6 h-full justify-center px-4"
     >
-      {alarms.map(alarm => (
-        <button 
-          key={alarm.id}
-          onClick={() => setAlarms(alarms.map(a => a.id === alarm.id ? { ...a, active: !a.active } : a))}
-          className={`relative text-left transition-all duration-1000 py-6 border-b outline-none ${alarm.active ? 'border-white/20' : 'border-white/5 hover:border-white/10'}`}
-        >
-          <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <h2 className={`font-display transition-all duration-1000 tracking-widest ${alarm.active ? 'text-3xl text-white font-light drop-shadow-md' : 'text-2xl text-white/30 font-extralight'}`}>
-                {alarm.time}
-              </h2>
-              <p className={`text-[7px] tracking-[0.4em] font-extralight ${alarm.active ? 'text-white/60' : 'text-white/20'}`}>
-                {alarm.label}
-              </p>
+      <div className="flex flex-col space-y-4 max-h-[60vh] overflow-y-auto no-scrollbar pb-10">
+        {alarms.map(alarm => (
+          <button 
+            key={alarm.id}
+            onClick={() => setAlarms(alarms.map(a => a.id === alarm.id ? { ...a, active: !a.active } : a))}
+            className={`relative text-left transition-all duration-1000 py-6 border-b outline-none ${alarm.active ? 'border-white/20' : 'border-white/10 hover:border-white/30'}`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h2 className={`font-display transition-all duration-1000 tracking-widest ${alarm.active ? 'text-3xl text-white font-light drop-shadow-md' : 'text-3xl text-white/60 font-extralight'}`}>
+                  {alarm.time}
+                </h2>
+                <div className="flex space-x-3 items-center">
+                  <p className={`text-[11px] tracking-[0.4em] font-extralight ${alarm.active ? 'text-white/80' : 'text-white/40'}`}>
+                    {alarm.label}
+                  </p>
+                  <p className={`text-[10px] tracking-[0.2em] font-extralight ${alarm.active ? 'text-white/60' : 'text-white/30'}`}>
+                    {alarm.repeat}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center justify-center">
+                <motion.div 
+                  layout
+                  className={`w-1 h-1 rounded-full ${alarm.active ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]' : 'bg-white/20'}`}
+                  animate={{ scale: alarm.active ? [1, 1.5, 1] : 1 }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                />
+              </div>
             </div>
-            <div className="flex items-center justify-center">
-              <motion.div 
-                layout
-                className={`w-1 h-1 rounded-full ${alarm.active ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]' : 'bg-white/10'}`}
-                animate={{ scale: alarm.active ? [1, 1.5, 1] : 1 }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-              />
-            </div>
-          </div>
-        </button>
-      ))}
+          </button>
+        ))}
+      </div>
 
-      <button className="mt-8 self-start flex items-center space-x-3 text-white/20 hover:text-white/50 transition-all duration-700 outline-none">
+      <button 
+        onClick={addAlarm}
+        className="mt-4 self-start flex items-center space-x-3 text-white/50 hover:text-white transition-all duration-700 outline-none"
+      >
         <span className="text-sm font-extralight pb-0.5">+</span>
-        <span className="text-[7px] tracking-[0.4em] uppercase font-extralight">添加唤醒</span>
+        <span className="text-[11px] tracking-[0.4em] uppercase font-light">添加唤醒</span>
       </button>
     </motion.div>
   );
 }
 
 function JetLagView() {
+  const [generating, setGenerating] = useState(false);
+  const [planGenerated, setPlanGenerated] = useState(false);
+
+  const handleGenerate = () => {
+    setGenerating(true);
+    setTimeout(() => {
+      setGenerating(false);
+      setPlanGenerated(true);
+    }, 2000);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 10 }}
-      className="flex flex-col h-full justify-center space-y-16 px-4"
+      className="flex flex-col h-full overflow-y-auto no-scrollbar space-y-12 px-4 py-8 max-h-[70vh]"
     >
       <div className="flex flex-col space-y-10">
         <div className="flex items-end justify-between border-b border-white/10 pb-4">
           <div className="space-y-2">
-            <p className="text-[7px] tracking-[0.5em] text-white/30 font-extralight uppercase">当前所在</p>
-            <h3 className="text-2xl font-display font-light text-white/70 tracking-widest">北京</h3>
+            <p className="text-[12px] tracking-[0.5em] text-white/80 font-light uppercase">当前所在</p>
+            <h3 className="text-2xl font-display font-light text-white/90 tracking-widest drop-shadow-sm">北京</h3>
           </div>
-          <span className="text-[9px] tracking-widest text-white/20 font-light">CST</span>
+          <span className="text-[12px] tracking-widest text-white/60 font-light">CST</span>
         </div>
         
         <div className="relative py-2 flex items-center justify-center">
           <div className="absolute w-[1px] h-12 bg-gradient-to-b from-white/0 via-white/20 to-white/0" />
           <motion.div 
-            className="bg-[#030305] px-3 py-1 text-[7px] tracking-[0.4em] text-white/40 font-extralight z-10"
-            animate={{ opacity: [0.3, 0.8, 0.3] }}
+            className="bg-[#030305] px-3 py-1 text-[12px] tracking-[0.4em] text-white/90 font-light z-10"
+            animate={{ opacity: [0.5, 1, 0.5] }}
             transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
           >
             调整中
@@ -605,22 +641,43 @@ function JetLagView() {
 
         <div className="flex items-end justify-between border-b border-white/20 pb-4">
           <div className="space-y-2">
-            <p className="text-[7px] tracking-[0.5em] text-white/30 font-extralight uppercase">目的地</p>
-            <h3 className="text-2xl font-display font-light text-white tracking-widest drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">伦敦</h3>
+            <p className="text-[12px] tracking-[0.5em] text-white/80 font-light uppercase">目的地</p>
+            <h3 className="text-2xl font-display font-light text-white tracking-widest drop-shadow-md">伦敦</h3>
           </div>
-          <span className="text-[9px] tracking-widest text-white/40 font-light">GMT</span>
+          <span className="text-[12px] tracking-widest text-white/80 font-light">GMT</span>
         </div>
       </div>
 
       <div className="flex justify-between items-center pt-8">
         <div className="space-y-1">
-          <p className="text-[7px] tracking-[0.4em] uppercase text-white/30 font-extralight">周期</p>
-          <p className="text-lg font-light text-white/80">3 <span className="text-[9px] text-white/40">DAY</span></p>
+          <p className="text-[12px] tracking-[0.4em] uppercase text-white/80 font-light">周期</p>
+          <p className="text-lg font-light text-white">3 <span className="text-[12px] text-white/80">DAY</span></p>
         </div>
-        <button className="text-[8px] tracking-[0.5em] font-extralight text-white/60 hover:text-white transition-colors uppercase outline-none border-b border-white/20 pb-1">
-          生成计划
+        <button 
+          onClick={handleGenerate}
+          disabled={generating || planGenerated}
+          className={`text-[12px] tracking-[0.5em] font-light transition-colors uppercase outline-none border-b pb-1 ${planGenerated ? 'text-white border-white/50' : 'text-white/80 hover:text-white border-white/20'}`}
+        >
+          {generating ? '生成中...' : planGenerated ? '计划已生成' : '生成计划'}
         </button>
       </div>
+
+      <AnimatePresence>
+        {planGenerated && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 p-4 border border-white/10 bg-white/5 rounded-sm"
+          >
+            <h4 className="text-[12px] tracking-[0.2em] font-light text-white/90 mb-2">已为你配置:</h4>
+            <ul className="space-y-2 text-[10px] text-white/70 tracking-widest font-extralight">
+              <li>• 第 1 天：延后睡眠 1 小时，配合深眠 4-7-8 频率。</li>
+              <li>• 第 2 天：晨间加强蓝光共振 15 分钟。</li>
+              <li>• 第 3 天：完全同步伦敦作息。</li>
+            </ul>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
