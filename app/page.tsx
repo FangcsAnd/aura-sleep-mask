@@ -297,12 +297,56 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
     let animationFrameId: number;
     let width = window.innerWidth;
     let height = window.innerHeight;
-    let dpr = window.devicePixelRatio || 1;
-    
+    const dpr = window.devicePixelRatio || 1;
+
+    // Rich nighttime color palettes
+    const nightColors = [
+      { r: 15, g: 20, b: 80 },   // deep sapphire
+      { r: 40, g: 10, b: 70 },   // royal purple
+      { r: 10, g: 50, b: 70 },   // deep ocean
+      { r: 50, g: 15, b: 50 },   // plum night
+      { r: 10, g: 35, b: 60 },   // midnight teal
+      { r: 30, g: 10, b: 60 },   // indigo
+      { r: 20, g: 40, b: 80 },   // twilight blue
+      { r: 50, g: 20, b: 60 },   // dark orchid
+      { r: 10, g: 45, b: 55 },   // deep cyan-night
+      { r: 35, g: 15, b: 55 },   // dark violet
+      { r: 15, g: 55, b: 60 },   // teal dusk
+      { r: 45, g: 25, b: 65 },   // amethyst
+      { r: 60, g: 25, b: 15 },   // deep mahogany
+      { r: 50, g: 35, b: 10 },   // dark amber
+      { r: 15, g: 40, b: 30 },   // forest night
+      { r: 55, g: 15, b: 35 },   // dark crimson
+      { r: 20, g: 30, b: 50 },   // slate blue
+      { r: 40, g: 40, b: 15 },   // dark olive
+      { r: 60, g: 10, b: 30 },   // deep rose
+      { r: 10, g: 25, b: 45 },   // navy dusk
+    ];
+
+    const particleColors = [
+      { r: 80, g: 120, b: 255 },  // blue
+      { r: 160, g: 80, b: 255 },  // purple
+      { r: 40, g: 200, b: 180 },  // teal
+      { r: 255, g: 80, b: 180 },  // pink
+      { r: 100, g: 100, b: 255 }, // periwinkle
+      { r: 80, g: 180, b: 255 },  // sky
+      { r: 220, g: 100, b: 255 }, // orchid
+      { r: 60, g: 200, b: 220 },  // cyan
+      { r: 255, g: 120, b: 80 },  // coral
+      { r: 180, g: 80, b: 255 },  // violet
+    ];
+
+    const pick = (arr: any[]) => arr[Math.floor(Math.random() * arr.length)];
+    const bg1 = pick(nightColors);
+    const bg2 = pick(nightColors);
+    const pCol = pick(particleColors);
+
     const setCanvasSize = () => {
       canvas.width = width * dpr;
       canvas.height = height * dpr;
-      ctx.scale(dpr, dpr);
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     };
     setCanvasSize();
 
@@ -312,21 +356,21 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
        particles[i] = Math.random();
     }
 
-    const modeConfigs: Record<Mode, { n: number, m: number, color: {r:number, g:number, b:number} }> = {
-      off: { n: 2, m: 3, color: { r: 30, g: 58, b: 138 } },
-      mindfulness: { n: 4, m: 5, color: { r: 168, g: 85, b: 247 } },
-      resonance: { n: 7, m: 2, color: { r: 45, g: 212, b: 191 } },
-      '478': { n: 5, m: 5, color: { r: 99, g: 102, b: 241 } },
+    const modeConfigs: Record<Mode, { n: number, m: number }> = {
+      off: { n: 2, m: 3 },
+      mindfulness: { n: 4, m: 5 },
+      resonance: { n: 7, m: 2 },
+      '478': { n: 5, m: 5 },
     };
 
     let currentN = modeConfigs['off'].n;
     let currentM = modeConfigs['off'].m;
-    let currentColor = { ...modeConfigs['off'].color };
     let lastTime = performance.now();
 
     let phaseIndex = 0;
     let phaseTimeMs = 0;
     let currentBreathValue = 0;
+    let bgPhase = 0;
 
     let resizeTimer: any;
     const handleResize = () => {
@@ -334,21 +378,19 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
       resizeTimer = setTimeout(() => {
         width = window.innerWidth;
         height = window.innerHeight;
-        dpr = window.devicePixelRatio || 1;
         setCanvasSize();
       }, 200);
     };
     window.addEventListener('resize', handleResize);
 
     const render = (time: number) => {
-      const dt = Math.min(time - lastTime, 50); // cap delta time
+      const dt = Math.min(time - lastTime, 50);
       lastTime = time;
       const fpsRatio = dt / (1000 / 60);
 
       const targetMode = isConnectedRef.current ? modeRef.current : 'off';
       const target = modeConfigs[targetMode];
       
-      // Breath phase machine
       const profile = breathProfiles[targetMode];
       if (phaseIndex >= profile.length) {
         phaseIndex = 0;
@@ -367,39 +409,45 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
       const smoothProgress = 0.5 - Math.cos(progress * Math.PI) / 2;
       const targetBreathValue = currentPhase.start + (currentPhase.end - currentPhase.start) * smoothProgress;
       
-      // Smooth interpolation of breathless values
-      const oldBreathValue = currentBreathValue;
       currentBreathValue += (targetBreathValue - currentBreathValue) * 0.1 * fpsRatio;
-      const breathDerivative = currentBreathValue - oldBreathValue;
-      
+      bgPhase += dt * 0.0005;
+
       currentN += (target.n - currentN) * 0.01 * fpsRatio;
       currentM += (target.m - currentM) * 0.01 * fpsRatio;
 
-      currentColor.r += (target.color.r - currentColor.r) * 0.02 * fpsRatio;
-      currentColor.g += (target.color.g - currentColor.g) * 0.02 * fpsRatio;
-      currentColor.b += (target.color.b - currentColor.b) * 0.02 * fpsRatio;
-
-      // Draw background with opacity for particle trail effect
+      // Flowing gradient background
+      const gx1 = width * (0.3 + Math.sin(bgPhase) * 0.3);
+      const gy1 = height * (0.3 + Math.cos(bgPhase * 0.7) * 0.3);
+      const gx2 = width * (0.7 + Math.cos(bgPhase * 0.8) * 0.3);
+      const gy2 = height * (0.7 + Math.sin(bgPhase * 0.6) * 0.3);
+      
       ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = `rgba(3, 3, 5, ${0.15 + (1 - currentBreathValue) * 0.15})`; 
+      const bgGrad = ctx.createLinearGradient(gx1, gy1, gx2, gy2);
+      bgGrad.addColorStop(0, `rgba(${bg1.r}, ${bg1.g}, ${bg1.b}, 1)`);
+      bgGrad.addColorStop(0.5, `rgba(${Math.floor((bg1.r + bg2.r) / 2)}, ${Math.floor((bg1.g + bg2.g) / 2)}, ${Math.floor((bg1.b + bg2.b) / 2)}, 1)`);
+      bgGrad.addColorStop(1, `rgba(${bg2.r}, ${bg2.g}, ${bg2.b}, 1)`);
+      ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
-      ctx.globalCompositeOperation = 'screen';
-      const intensity = 0.6 + currentBreathValue * 0.4;
-      ctx.fillStyle = `rgba(${Math.round(currentColor.r)}, ${Math.round(currentColor.g)}, ${Math.round(currentColor.b)}, ${intensity})`;
+      // Dark fade for particle trail
+      ctx.fillStyle = `rgba(4, 4, 15, ${0.10 + (1 - currentBreathValue) * 0.10})`;
+      ctx.fillRect(0, 0, width, height);
 
-      // Breathing resonance parameters mapping a circle in phase space
+      // Particles with random color
+      ctx.globalCompositeOperation = 'screen';
+      const intensity = 0.5 + currentBreathValue * 0.3;
+      ctx.fillStyle = `rgba(${pCol.r}, ${pCol.g}, ${pCol.b}, ${intensity})`;
+
       const targetT = currentBreathValue * (Math.PI / 2);
       const a = Math.cos(targetT);
       const b = Math.sin(targetT);
       
-      // Expand/contract slightly based on breath
       const scaleFactor = 1.0 + currentBreathValue * 0.2;
       const size = Math.max(width, height) * scaleFactor;
       const offsetX = (width - size) / 2;
       const offsetY = (height - size) / 2;
 
-      const vibration = targetMode === 'off' ? 0.002 : 0.003 + currentBreathValue * 0.008;
+      const vibration = targetMode === 'off' ? 0.001 : 0.001 + currentBreathValue * 0.006;
       const stepSize = 0.001 * fpsRatio;
 
       ctx.beginPath();
@@ -407,25 +455,13 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
         let x = particles[i*2];
         let y = particles[i*2 + 1];
 
-        // Browninan noise to keep particles alive and prevent stacking
         x += (Math.random() - 0.5) * vibration * fpsRatio;
         y += (Math.random() - 0.5) * vibration * fpsRatio;
 
-        // Torus wrapping
         if (x < 0) x += 1;
         if (x > 1) x -= 1;
         if (y < 0) y += 1;
         if (y > 1) y -= 1;
-
-        // Breath gravity field
-        const dx = 0.5 - x;
-        const dy = 0.5 - y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > 0.01) {
-          const force = breathDerivative * -0.5; // push out on inhale, pull in on exhale
-          x += (dx / dist) * force * fpsRatio;
-          y += (dy / dist) * force * fpsRatio;
-        }
 
         const piX = Math.PI * x;
         const piY = Math.PI * y;
@@ -433,7 +469,6 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
         const cosNX = Math.cos(currentN * piX);
         const sinMY = Math.sin(currentM * piY);
         const cosMY = Math.cos(currentM * piY);
-        
         const sinMX = Math.sin(currentM * piX);
         const cosMX = Math.cos(currentM * piX);
         const sinNY = Math.sin(currentN * piY);
@@ -443,7 +478,6 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
         const dfdx = a * currentN * Math.PI * cosNX * sinMY + b * currentM * Math.PI * cosMX * sinNY;
         const dfdy = a * currentM * Math.PI * sinNX * cosMY + b * currentN * Math.PI * sinMX * cosNY;
 
-        // Gradient descent towards f=0 (nodal lines), plus random respawn to prevent pure stacking
         if (Math.random() < 0.001 * fpsRatio) {
            x = Math.random();
            y = Math.random();
@@ -462,14 +496,6 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
       }
       ctx.fill();
 
-      // Add a subtle vignette/glow overlay
-      const gradient = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, size/1.5);
-      gradient.addColorStop(0, 'rgba(0,0,0,0)');
-      gradient.addColorStop(1, 'rgba(3,3,5,0.8)');
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, width, height);
-
       animationFrameId = requestAnimationFrame(render);
     };
     animationFrameId = requestAnimationFrame(render);
@@ -480,7 +506,7 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 z-0 w-full h-full object-cover" />;
+  return <canvas ref={canvasRef} className="fixed inset-0 z-0 w-full h-full" />;
 });
 
 function TherapyView({ activeMode, setActiveMode, timerDuration, setTimerDuration, triggerHaptic }: any) {
@@ -658,14 +684,13 @@ function AlarmsView({ alarms, setAlarms }: { alarms: Alarm[]; setAlarms: React.D
                     <h2 className={`font-display transition-all duration-700 tracking-widest ${alarm.active ? 'text-3xl text-white font-light drop-shadow-md' : 'text-3xl text-white/40 font-extralight'}`}>
                       {alarm.time}
                     </h2>
-                    <div className="flex space-x-3 items-center pt-1">
-                      <p className={`text-[9px] tracking-[0.2em] font-extralight ${alarm.active ? 'text-white/40' : 'text-white/20'}`}>
-                        {formatRepeat(alarm.repeat)}
-                      </p>
-                    </div>
+                    <p className={`text-[9px] tracking-[0.2em] font-extralight ${alarm.active ? 'text-white/40' : 'text-white/20'}`}>
+                      {formatRepeat(alarm.repeat)}
+                    </p>
                   </div>
-                  <div className="flex items-center justify-center">
+                  <div className="flex items-center space-x-2">
                     <div className={`w-1.5 h-1.5 rounded-full transition-all ${alarm.active ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.6)] scale-100' : 'bg-white/20 scale-75'}`} />
+                    <span className="text-white/20 text-sm font-thin">›</span>
                   </div>
                 </div>
               </button>
