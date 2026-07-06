@@ -7,6 +7,14 @@ import { Battery, BatteryMedium, BatteryLow, Moon } from 'lucide-react';
 type Mode = 'off' | 'mindfulness' | 'resonance' | '478';
 type Tab = 'therapy' | 'alarms' | 'jetlag';
 
+type Alarm = {
+  id: number;
+  time: string;
+  label: string;
+  active: boolean;
+  repeat: number[];
+};
+
 export default function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [batteryLevel, setBatteryLevel] = useState(100);
@@ -16,6 +24,10 @@ export default function App() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [showUI, setShowUI] = useState(true);
   const [scalePulse, setScalePulse] = useState(1);
+  const [alarms, setAlarms] = useState<Alarm[]>([
+    { id: 1, time: '07:00', label: '晨间唤醒', active: true, repeat: [1, 1, 1, 1, 1, 0, 0] },
+    { id: 2, time: '08:30', label: '周末赖床', active: false, repeat: [0, 0, 0, 0, 0, 1, 1] },
+  ]);
   const uiTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const triggerHaptic = (intensity: 'light' | 'medium' | 'heavy' = 'medium') => {
@@ -194,8 +206,8 @@ export default function App() {
                       triggerHaptic={triggerHaptic}
                     />
                   )}
-                  {activeTab === 'alarms' && <AlarmsView />}
-                  {activeTab === 'jetlag' && <JetLagView />}
+                  {activeTab === 'alarms' && <AlarmsView alarms={alarms} setAlarms={setAlarms} />}
+                  {activeTab === 'jetlag' && <JetLagView alarms={alarms} setAlarms={setAlarms} setActiveTab={setActiveTab} />}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -542,21 +554,49 @@ function TherapyView({ activeMode, setActiveMode, timerDuration, setTimerDuratio
   );
 }
 
-function AlarmsView() {
-  const [alarms, setAlarms] = useState([
-    { id: 1, time: '07:00', label: '晨间唤醒', active: true, repeat: '工作日' },
-    { id: 2, time: '08:30', label: '周末赖床', active: false, repeat: '周末' },
-  ]);
+function AlarmsView({ alarms, setAlarms }: { alarms: Alarm[]; setAlarms: React.Dispatch<React.SetStateAction<Alarm[]>> }) {
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editTime, setEditTime] = useState('07:00');
+  const [editRepeat, setEditRepeat] = useState<number[]>([1,1,1,1,1,1,1]);
+
+  const dayNames = ['一', '二', '三', '四', '五', '六', '日'];
+
+  const startEdit = (alarm: typeof alarms[0]) => {
+    setEditingId(alarm.id);
+    setEditTime(alarm.time);
+    setEditRepeat([...alarm.repeat]);
+  };
+
+  const saveEdit = () => {
+    if (editingId === null) return;
+    setAlarms(alarms.map(a => a.id === editingId ? { ...a, time: editTime, repeat: editRepeat } : a));
+    setEditingId(null);
+  };
+
+  const deleteAlarm = (id: number) => {
+    setAlarms(alarms.filter(a => a.id !== id));
+    if (editingId === id) setEditingId(null);
+  };
 
   const addAlarm = () => {
+    if (alarms.length >= 10) return;
     const newAlarm = {
       id: Date.now(),
-      time: '06:00',
-      label: '新唤醒',
+      time: '08:00',
+      label: '',
       active: true,
-      repeat: '单次'
+      repeat: [1, 1, 1, 1, 1, 1, 1]
     };
     setAlarms([...alarms, newAlarm]);
+  };
+
+  const formatRepeat = (r: number[]) => {
+    const allOn = r.every(v => v === 1);
+    const allOff = r.every(v => v === 0);
+    if (allOn) return '每天';
+    if (allOff) return '单次';
+    const days = r.map((v, i) => v ? dayNames[i] : '').filter(Boolean).join('·');
+    return days;
   };
 
   return (
@@ -564,63 +604,308 @@ function AlarmsView() {
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 1.02 }}
-      className="flex flex-col h-[60vh] justify-start px-4 overflow-y-auto no-scrollbar"
+      className="flex flex-col h-[60vh] justify-start px-4 overflow-y-auto no-scrollbar pb-8"
     >
-      <div className="flex flex-col space-y-4 pb-6">
+      <div className="flex flex-col space-y-4">
         {alarms.map(alarm => (
-          <button 
-            key={alarm.id}
-            onClick={() => setAlarms(alarms.map(a => a.id === alarm.id ? { ...a, active: !a.active } : a))}
-            className={`relative text-left transition-all duration-1000 py-6 border-b outline-none ${alarm.active ? 'border-white/20' : 'border-white/10 hover:border-white/30'}`}
-          >
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <h2 className={`font-display transition-all duration-1000 tracking-widest ${alarm.active ? 'text-3xl text-white font-light drop-shadow-md' : 'text-3xl text-white/60 font-extralight'}`}>
-                  {alarm.time}
-                </h2>
-                <div className="flex space-x-3 items-center">
-                  <p className={`text-[11px] tracking-[0.4em] font-extralight ${alarm.active ? 'text-white/80' : 'text-white/40'}`}>
-                    {alarm.label}
-                  </p>
-                  <p className={`text-[10px] tracking-[0.2em] font-extralight ${alarm.active ? 'text-white/60' : 'text-white/30'}`}>
-                    {alarm.repeat}
-                  </p>
+          <div key={alarm.id}>
+            {editingId === alarm.id ? (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="py-4 border-b border-white/10 space-y-5"
+              >
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="time"
+                    value={editTime}
+                    onChange={(e) => setEditTime(e.target.value)}
+                    className="bg-transparent border border-white/20 rounded px-3 py-1 text-white text-lg font-light tracking-wider outline-none [color-scheme:dark]"
+                  />
                 </div>
-              </div>
-              <div className="flex items-center justify-center">
-                <motion.div 
-                  layout
-                  className={`w-1 h-1 rounded-full ${alarm.active ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]' : 'bg-white/20'}`}
-                  animate={{ scale: alarm.active ? [1, 1.5, 1] : 1 }}
-                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                />
-              </div>
-            </div>
-          </button>
+
+                <div className="flex space-x-1 justify-center">
+                  {dayNames.map((day, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        const next = [...editRepeat];
+                        next[i] = next[i] ? 0 : 1;
+                        setEditRepeat(next);
+                      }}
+                      className={`w-8 h-8 rounded-full text-[10px] font-light tracking-wider transition-all ${
+                        editRepeat[i] ? 'bg-white/15 text-white' : 'bg-transparent text-white/30'
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex space-x-4 justify-end">
+                  <button onClick={() => deleteAlarm(alarm.id)} className="text-[10px] text-rose-400/70 hover:text-rose-400 tracking-widest uppercase">删除</button>
+                  <button onClick={() => setEditingId(null)} className="text-[10px] text-white/40 hover:text-white/70 tracking-widest uppercase">取消</button>
+                  <button onClick={saveEdit} className="text-[10px] text-white/80 hover:text-white tracking-widest uppercase">保存</button>
+                </div>
+              </motion.div>
+            ) : (
+              <button 
+                onClick={() => startEdit(alarm)}
+                className={`w-full relative text-left transition-all duration-700 py-6 border-b outline-none ${alarm.active ? 'border-white/20' : 'border-white/10 hover:border-white/30'}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <h2 className={`font-display transition-all duration-700 tracking-widest ${alarm.active ? 'text-3xl text-white font-light drop-shadow-md' : 'text-3xl text-white/40 font-extralight'}`}>
+                      {alarm.time}
+                    </h2>
+                    <div className="flex space-x-3 items-center pt-1">
+                      <p className={`text-[9px] tracking-[0.2em] font-extralight ${alarm.active ? 'text-white/40' : 'text-white/20'}`}>
+                        {formatRepeat(alarm.repeat)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center">
+                    <div className={`w-1.5 h-1.5 rounded-full transition-all ${alarm.active ? 'bg-white shadow-[0_0_8px_rgba(255,255,255,0.6)] scale-100' : 'bg-white/20 scale-75'}`} />
+                  </div>
+                </div>
+              </button>
+            )}
+          </div>
         ))}
       </div>
 
-      <button 
-        onClick={addAlarm}
-        className="mt-4 self-start flex items-center space-x-3 text-white/50 hover:text-white transition-all duration-700 outline-none"
-      >
-        <span className="text-sm font-extralight pb-0.5">+</span>
-        <span className="text-[11px] tracking-[0.4em] uppercase font-light">添加唤醒</span>
-      </button>
+      {alarms.length < 10 ? (
+        <button 
+          onClick={addAlarm}
+          className="mt-6 self-start flex items-center space-x-3 text-white/40 hover:text-white/80 transition-all duration-700 outline-none"
+        >
+          <span className="text-base font-thin">+</span>
+          <span className="text-[11px] tracking-[0.4em] uppercase font-light">添加唤醒</span>
+        </button>
+      ) : (
+        <p className="mt-6 text-[10px] text-white/20 tracking-wider font-extralight">最多 10 个闹钟</p>
+      )}
     </motion.div>
   );
 }
 
-function JetLagView() {
+function JetLagView({ alarms, setAlarms, setActiveTab }: { alarms: Alarm[]; setAlarms: React.Dispatch<React.SetStateAction<Alarm[]>>; setActiveTab: (tab: Tab) => void }) {
+  const [addedDays, setAddedDays] = useState<Set<number>>(new Set());
+  const regions: { name: string; cities: { name: string; tz: string; offset: number }[] }[] = [
+    {
+      name: '中国',
+      cities: [
+        { name: '北京', tz: 'CST', offset: 8 },
+        { name: '上海', tz: 'CST', offset: 8 },
+        { name: '广州', tz: 'CST', offset: 8 },
+        { name: '深圳', tz: 'CST', offset: 8 },
+        { name: '香港', tz: 'HKT', offset: 8 },
+        { name: '澳门', tz: 'CST', offset: 8 },
+        { name: '成都', tz: 'CST', offset: 8 },
+        { name: '重庆', tz: 'CST', offset: 8 },
+        { name: '杭州', tz: 'CST', offset: 8 },
+        { name: '南京', tz: 'CST', offset: 8 },
+        { name: '西安', tz: 'CST', offset: 8 },
+        { name: '昆明', tz: 'CST', offset: 8 },
+        { name: '三亚', tz: 'CST', offset: 8 },
+        { name: '拉萨', tz: 'CST', offset: 8 },
+        { name: '乌鲁木齐', tz: 'CST', offset: 6 },
+      ],
+    },
+    {
+      name: '东亚',
+      cities: [
+        { name: '东京', tz: 'JST', offset: 9 },
+        { name: '大阪', tz: 'JST', offset: 9 },
+        { name: '首尔', tz: 'KST', offset: 9 },
+        { name: '釜山', tz: 'KST', offset: 9 },
+        { name: '台北', tz: 'CST', offset: 8 },
+        { name: '新加坡', tz: 'SGT', offset: 8 },
+        { name: '吉隆坡', tz: 'MYT', offset: 8 },
+        { name: '马尼拉', tz: 'PHT', offset: 8 },
+        { name: '雅加达', tz: 'WIB', offset: 7 },
+      ],
+    },
+    {
+      name: '东南亚·南亚',
+      cities: [
+        { name: '曼谷', tz: 'ICT', offset: 7 },
+        { name: '清迈', tz: 'ICT', offset: 7 },
+        { name: '普吉岛', tz: 'ICT', offset: 7 },
+        { name: '河内', tz: 'ICT', offset: 7 },
+        { name: '胡志明市', tz: 'ICT', offset: 7 },
+        { name: '巴厘岛', tz: 'WITA', offset: 8 },
+        { name: '马尔代夫', tz: 'MVT', offset: 5 },
+        { name: '新德里', tz: 'IST', offset: 5.5 },
+        { name: '孟买', tz: 'IST', offset: 5.5 },
+        { name: '科伦坡', tz: 'IST', offset: 5.5 },
+      ],
+    },
+    {
+      name: '中东·非洲',
+      cities: [
+        { name: '迪拜', tz: 'GST', offset: 4 },
+        { name: '阿布扎比', tz: 'GST', offset: 4 },
+        { name: '多哈', tz: 'AST', offset: 3 },
+        { name: '伊斯坦布尔', tz: 'TRT', offset: 3 },
+        { name: '开罗', tz: 'EET', offset: 2 },
+        { name: '开普敦', tz: 'SAST', offset: 2 },
+        { name: '约翰内斯堡', tz: 'SAST', offset: 2 },
+        { name: '内罗毕', tz: 'EAT', offset: 3 },
+        { name: '卡萨布兰卡', tz: 'WET', offset: 0 },
+        { name: '毛里求斯', tz: 'MUT', offset: 4 },
+      ],
+    },
+    {
+      name: '欧洲',
+      cities: [
+        { name: '伦敦', tz: 'GMT', offset: 0 },
+        { name: '巴黎', tz: 'CET', offset: 1 },
+        { name: '柏林', tz: 'CET', offset: 1 },
+        { name: '罗马', tz: 'CET', offset: 1 },
+        { name: '马德里', tz: 'CET', offset: 1 },
+        { name: '巴塞罗那', tz: 'CET', offset: 1 },
+        { name: '阿姆斯特丹', tz: 'CET', offset: 1 },
+        { name: '苏黎世', tz: 'CET', offset: 1 },
+        { name: '维也纳', tz: 'CET', offset: 1 },
+        { name: '布拉格', tz: 'CET', offset: 1 },
+        { name: '莫斯科', tz: 'MSK', offset: 3 },
+        { name: '圣彼得堡', tz: 'MSK', offset: 3 },
+        { name: '雅典', tz: 'EET', offset: 2 },
+        { name: '雷克雅未克', tz: 'GMT', offset: 0 },
+        { name: '里斯本', tz: 'WET', offset: 0 },
+      ],
+    },
+    {
+      name: '北美',
+      cities: [
+        { name: '纽约', tz: 'EST', offset: -5 },
+        { name: '洛杉矶', tz: 'PST', offset: -8 },
+        { name: '旧金山', tz: 'PST', offset: -8 },
+        { name: '芝加哥', tz: 'CST', offset: -6 },
+        { name: '波士顿', tz: 'EST', offset: -5 },
+        { name: '华盛顿', tz: 'EST', offset: -5 },
+        { name: '迈阿密', tz: 'EST', offset: -5 },
+        { name: '拉斯维加斯', tz: 'PST', offset: -8 },
+        { name: '西雅图', tz: 'PST', offset: -8 },
+        { name: '多伦多', tz: 'EST', offset: -5 },
+        { name: '温哥华', tz: 'PST', offset: -8 },
+        { name: '蒙特利尔', tz: 'EST', offset: -5 },
+        { name: '墨西哥城', tz: 'CST', offset: -6 },
+        { name: '坎昆', tz: 'EST', offset: -5 },
+      ],
+    },
+    {
+      name: '大洋洲',
+      cities: [
+        { name: '悉尼', tz: 'AEDT', offset: 11 },
+        { name: '墨尔本', tz: 'AEDT', offset: 11 },
+        { name: '布里斯班', tz: 'AEST', offset: 10 },
+        { name: '珀斯', tz: 'AWST', offset: 8 },
+        { name: '奥克兰', tz: 'NZDT', offset: 13 },
+        { name: '斐济', tz: 'FJT', offset: 12 },
+        { name: '黄金海岸', tz: 'AEST', offset: 10 },
+      ],
+    },
+    {
+      name: '南美',
+      cities: [
+        { name: '圣保罗', tz: 'BRT', offset: -3 },
+        { name: '里约', tz: 'BRT', offset: -3 },
+        { name: '布宜诺斯', tz: 'ART', offset: -3 },
+        { name: '圣地亚哥', tz: 'CLT', offset: -4 },
+        { name: '利马', tz: 'PET', offset: -5 },
+        { name: '波哥大', tz: 'COT', offset: -5 },
+      ],
+    },
+  ];
+
+  const allCities = regions.flatMap(r => r.cities);
+
+  const [originIdx, setOriginIdx] = useState(0);
+  const [destIdx, setDestIdx] = useState(allCities.findIndex(c => c.name === '伦敦'));
+  const [originRegion, setOriginRegion] = useState(0);
+  const [destRegion, setDestRegion] = useState(regions.findIndex(r => r.cities.some(c => c.name === '伦敦')));
+
+  const [days, setDays] = useState(3);
+  const [bedHour, setBedHour] = useState(23);
+  const [bedMin, setBedMin] = useState(0);
+  const [wakeHour, setWakeHour] = useState(7);
+  const [wakeMin, setWakeMin] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [planGenerated, setPlanGenerated] = useState(false);
 
+  const origin = allCities[originIdx];
+  const dest = allCities[destIdx];
+  const diff = dest.offset - origin.offset;
+
+  const padTime = (h: number, m: number) => `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+
   const handleGenerate = () => {
     setGenerating(true);
+    setPlanGenerated(false);
+    setAddedDays(new Set());
     setTimeout(() => {
       setGenerating(false);
       setPlanGenerated(true);
-    }, 2000);
+    }, 1500);
+  };
+
+  const addWakeAlarm = (day: number, time: string) => {
+    const label = diff === 0 ? dest.name : `${dest.name} D${day}`;
+    const newAlarm: Alarm = {
+      id: Date.now() + day,
+      time,
+      label,
+      active: true,
+      repeat: [1,1,1,1,1,1,1],
+    };
+    setAlarms([...alarms.filter(a => a.label !== label), newAlarm]);
+    setAddedDays(prev => new Set(prev).add(day));
+  };
+
+  const planDays = diff !== 0
+    ? Array.from({ length: days }, (_, i) => {
+        const progress = (i + 1) / days;
+        const shiftH = Math.round(diff * progress);
+        let wakeOriginH = wakeHour - shiftH;
+        let bedOriginH = bedHour - shiftH;
+        let wakeDestH = wakeHour - Math.round(diff * (1 - progress));
+        if (wakeOriginH < 0) wakeOriginH += 24;
+        if (wakeOriginH >= 24) wakeOriginH -= 24;
+        if (bedOriginH < 0) bedOriginH += 24;
+        if (bedOriginH >= 24) bedOriginH -= 24;
+        if (wakeDestH < 0) wakeDestH += 24;
+        if (wakeDestH >= 24) wakeDestH -= 24;
+        const remainShift = Math.round(diff * (1 - (i + 0.5) / days));
+        return {
+          day: i + 1,
+          wakeDest: padTime(wakeDestH, wakeMin),
+          sleepOrigin: padTime(bedOriginH, bedMin),
+          wakeOrigin: padTime(wakeOriginH, wakeMin),
+          shiftH: Math.abs(remainShift),
+          dir: diff > 0 ? '延后' : '提前',
+          intensity: 40 + i * 15,
+        };
+      })
+    : [{ day: 1, wakeDest: padTime(wakeHour, wakeMin), sleepOrigin: padTime(bedHour, bedMin), wakeOrigin: padTime(wakeHour, wakeMin), shiftH: 0, dir: '无需', intensity: 60 }];
+
+  const [pickerOpen, setPickerOpen] = useState<'origin' | 'dest' | null>(null);
+  const [search, setSearch] = useState('');
+
+  const filteredRegions = search
+    ? regions.map(r => ({
+        ...r,
+        cities: r.cities.filter(c => c.name.includes(search) || r.name.includes(search)),
+      })).filter(r => r.cities.length > 0)
+    : regions;
+
+  const selectAndClose = (cityIdx: number, which: 'origin' | 'dest') => {
+    if (which === 'origin') { setOriginIdx(cityIdx); setOriginRegion(regions.findIndex(r => r.cities.some(c => allCities.indexOf(c) === cityIdx))); }
+    else { setDestIdx(cityIdx); setDestRegion(regions.findIndex(r => r.cities.some(c => allCities.indexOf(c) === cityIdx))); }
+    setPickerOpen(null);
+    setSearch('');
+    setPlanGenerated(false);
   };
 
   return (
@@ -628,64 +913,193 @@ function JetLagView() {
       initial={{ opacity: 0, x: 10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 10 }}
-      className="flex flex-col overflow-y-auto no-scrollbar space-y-8 px-4 py-4 h-[60vh]"
+      className="flex flex-col overflow-y-auto no-scrollbar space-y-6 px-4 py-4 h-[60vh] pb-8"
     >
-      <div className="flex flex-col space-y-10">
-        <div className="flex items-end justify-between border-b border-white/10 pb-4">
-          <div className="space-y-2">
-            <p className="text-[12px] tracking-[0.5em] text-white/80 font-light uppercase">当前所在</p>
-            <h3 className="text-2xl font-display font-light text-white/90 tracking-widest drop-shadow-sm">北京</h3>
+      {/* City selectors */}
+      <div className="flex flex-col space-y-3">
+        {([
+          { which: 'origin' as const, label: '出发地', city: origin },
+          { which: 'dest' as const, label: '目的地', city: dest },
+        ]).map((s, si) => (
+          <div key={si}>
+            {si === 1 && (
+              <div className="flex justify-center pb-2">
+                <div className="w-px h-5 bg-gradient-to-b from-white/10 via-white/30 to-white/10" />
+              </div>
+            )}
+            <p className="text-[10px] tracking-[0.4em] text-white/50 font-light uppercase mb-1.5">{s.label}</p>
+            <button
+              onClick={() => { setPickerOpen(s.which); setSearch(''); }}
+              className="w-full flex items-center justify-between px-3 py-3 border border-white/10 bg-transparent hover:bg-white/[0.03] transition-colors"
+            >
+              <span className="text-white text-sm font-light tracking-wider">{s.city.name}</span>
+              <span className="text-white/30 text-xs tracking-wider">{s.city.tz}</span>
+            </button>
           </div>
-          <span className="text-[12px] tracking-widest text-white/60 font-light">CST</span>
-        </div>
-        
-        <div className="relative py-2 flex items-center justify-center">
-          <div className="absolute w-[1px] h-12 bg-gradient-to-b from-white/0 via-white/20 to-white/0" />
-          <motion.div 
-            className="bg-[#030305] px-3 py-1 text-[12px] tracking-[0.4em] text-white/90 font-light z-10"
-            animate={{ opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        ))}
+      </div>
+
+      {/* City picker modal */}
+      <AnimatePresence>
+        {pickerOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/90 flex flex-col"
           >
-            调整中
+            <div className="px-4 pt-12 pb-4 flex items-center space-x-3">
+              <button onClick={() => { setPickerOpen(null); setSearch(''); }} className="text-white/60 hover:text-white text-sm tracking-wider font-light">取消</button>
+              <div className="flex-1 relative">
+                <input
+                  autoFocus
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="搜索城市…"
+                  className="w-full bg-white/[0.06] border border-white/10 rounded px-3 py-2 text-white text-sm font-light tracking-wider outline-none placeholder:text-white/20"
+                />
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 pb-8">
+              {filteredRegions.map((r, ri) => (
+                <div key={ri} className="mb-5">
+                  <p className="text-[10px] tracking-[0.3em] text-white/30 font-light uppercase mb-2">{r.name}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {r.cities.map((c) => {
+                      const idx = allCities.indexOf(c);
+                      const localRegIdx = regions.findIndex(rr => rr.cities.some(cc => allCities.indexOf(cc) === idx));
+                      const isSelected = pickerOpen === 'origin' ? idx === originIdx : idx === destIdx;
+                      return (
+                        <button
+                          key={c.name}
+                          onClick={() => selectAndClose(idx, pickerOpen!)}
+                          className={`text-left px-3 py-2.5 border transition-all ${
+                            isSelected ? 'border-white/30 bg-white/10' : 'border-white/[0.06] hover:border-white/20'
+                          }`}
+                        >
+                          <span className="text-white text-xs font-light tracking-wider">{c.name}</span>
+                          <span className="text-white/30 text-[10px] tracking-wider ml-2">{c.tz}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
           </motion.div>
-        </div>
+        )}
+      </AnimatePresence>
 
-        <div className="flex items-end justify-between border-b border-white/20 pb-4">
-          <div className="space-y-2">
-            <p className="text-[12px] tracking-[0.5em] text-white/80 font-light uppercase">目的地</p>
-            <h3 className="text-2xl font-display font-light text-white tracking-widest drop-shadow-md">伦敦</h3>
+      {/* Sleep schedule */}
+      <div className="grid grid-cols-2 gap-4 py-2">
+        <div className="space-y-2">
+          <p className="text-[9px] tracking-[0.3em] text-white/30 font-light uppercase">{origin.tz} 入睡</p>
+          <div className="flex items-baseline space-x-1">
+            <select value={bedHour} onChange={e => { setBedHour(+e.target.value); setPlanGenerated(false); }}
+              className="bg-transparent text-white text-xl font-light tracking-wider outline-none appearance-none cursor-pointer [color-scheme:dark]">
+              {Array.from({length:24}, (_,i) => <option key={i} value={i} className="bg-[#0a0a12]">{i.toString().padStart(2,'0')}</option>)}
+            </select>
+            <span className="text-white/30 text-lg">:</span>
+            <select value={bedMin} onChange={e => { setBedMin(+e.target.value); setPlanGenerated(false); }}
+              className="bg-transparent text-white text-xl font-light tracking-wider outline-none appearance-none cursor-pointer [color-scheme:dark]">
+              {[0,30].map(m => <option key={m} value={m} className="bg-[#0a0a12]">{m.toString().padStart(2,'0')}</option>)}
+            </select>
           </div>
-          <span className="text-[12px] tracking-widest text-white/80 font-light">GMT</span>
+        </div>
+        <div className="space-y-2">
+          <p className="text-[9px] tracking-[0.3em] text-white/30 font-light uppercase">{origin.tz} 起床</p>
+          <div className="flex items-baseline space-x-1">
+            <select value={wakeHour} onChange={e => { setWakeHour(+e.target.value); setPlanGenerated(false); }}
+              className="bg-transparent text-white text-xl font-light tracking-wider outline-none appearance-none cursor-pointer [color-scheme:dark]">
+              {Array.from({length:24}, (_,i) => <option key={i} value={i} className="bg-[#0a0a12]">{i.toString().padStart(2,'0')}</option>)}
+            </select>
+            <span className="text-white/30 text-lg">:</span>
+            <select value={wakeMin} onChange={e => { setWakeMin(+e.target.value); setPlanGenerated(false); }}
+              className="bg-transparent text-white text-xl font-light tracking-wider outline-none appearance-none cursor-pointer [color-scheme:dark]">
+              {[0,30].map(m => <option key={m} value={m} className="bg-[#0a0a12]">{m.toString().padStart(2,'0')}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 
-      <div className="flex justify-between items-center pt-8">
-        <div className="space-y-1">
-          <p className="text-[12px] tracking-[0.4em] uppercase text-white/80 font-light">周期</p>
-          <p className="text-lg font-light text-white">3 <span className="text-[12px] text-white/80">DAY</span></p>
+      {/* Time diff indicator */}
+      <div className="flex items-center justify-between px-2 py-3 border-y border-white/10">
+        <div className="text-[12px] tracking-wider text-white/60 font-light">
+          时差 <span className="text-white">{diff >= 0 ? '+' : ''}{diff}h</span>
         </div>
-        <button 
-          onClick={handleGenerate}
-          disabled={generating || planGenerated}
-          className={`text-[12px] tracking-[0.5em] font-light transition-colors uppercase outline-none border-b pb-1 ${planGenerated ? 'text-white border-white/50' : 'text-white/80 hover:text-white border-white/20'}`}
-        >
-          {generating ? '生成中...' : planGenerated ? '计划已生成' : '生成计划'}
-        </button>
+        <div className="text-[11px] tracking-wider text-white/30 font-extralight">
+          {origin.tz} → {dest.tz}
+        </div>
       </div>
 
+      {/* Days slider */}
+      <div className="flex items-center justify-between px-2">
+        <p className="text-[11px] tracking-[0.3em] text-white/50 font-light uppercase">适应周期</p>
+        <div className="flex items-center space-x-2">
+          <input
+            type="range"
+            min="1" max="7"
+            value={days}
+            onChange={(e) => { setDays(parseInt(e.target.value)); setPlanGenerated(false); }}
+            className="w-24 h-[1px] bg-white/20 appearance-none outline-none cursor-pointer
+              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5
+              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_8px_rgba(255,255,255,0.6)]"
+          />
+          <span className="text-sm text-white/80 font-light w-8 text-right">{days}<span className="text-[10px] text-white/30 ml-0.5">天</span></span>
+        </div>
+      </div>
+
+      {/* Generate button */}
+      <button 
+        onClick={handleGenerate}
+        disabled={generating}
+        className={`w-full py-3 text-center text-[12px] tracking-[0.4em] font-light uppercase transition-all border outline-none ${
+          planGenerated ? 'border-white/20 text-white/60' : generating ? 'border-white/10 text-white/40' : 'border-white/20 text-white hover:bg-white/5'
+        }`}
+      >
+        {generating ? '生成中…' : planGenerated ? '重新生成' : '生成适配计划'}
+      </button>
+
+      {/* Plan result */}
       <AnimatePresence>
         {planGenerated && (
           <motion.div 
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mt-4 p-4 border border-white/10 bg-white/5 rounded-sm"
+            className="space-y-3 border border-white/10 bg-white/[0.03] p-4"
           >
-            <h4 className="text-[12px] tracking-[0.2em] font-light text-white/90 mb-2">已为你配置:</h4>
-            <ul className="space-y-2 text-[10px] text-white/70 tracking-widest font-extralight">
-              <li>• 第 1 天：延后睡眠 1 小时，配合深眠 4-7-8 频率。</li>
-              <li>• 第 2 天：晨间加强蓝光共振 15 分钟。</li>
-              <li>• 第 3 天：完全同步伦敦作息。</li>
-            </ul>
+            <h4 className="text-[11px] tracking-[0.3em] text-white/70 font-light uppercase mb-3">
+              光照 + 睡眠计划
+            </h4>
+            <div className="flex items-center justify-between py-2 px-3 bg-white/[0.04] border border-white/5">
+              <span className="text-[10px] text-white/40 tracking-wider font-extralight">目标 · {dest.tz}</span>
+              <span className="text-sm text-white/80 font-light tracking-widest">睡 {padTime(bedHour, bedMin)} → 起 {padTime(wakeHour, wakeMin)}</span>
+            </div>
+            <div className="space-y-3">
+              {planDays.map((d, i) => {
+                const isAdded = addedDays.has(d.day);
+                return (
+                <div key={i} className="flex items-start space-x-3">
+                  <div className={`mt-0.5 w-1 h-1 rounded-full shrink-0 transition-colors ${isAdded ? 'bg-white' : 'bg-white/50'}`} />
+                  <div className="flex-1">
+                    <div className="flex justify-between items-baseline">
+                      <p className="text-[11px] text-white/80 font-light tracking-wider">第 {d.day} 天</p>
+                      <button
+                        onClick={() => addWakeAlarm(d.day, d.wakeDest)}
+                        className={`text-[11px] font-light tracking-wider transition-all ${isAdded ? 'text-white/40 cursor-default' : 'text-white/60 hover:text-white cursor-pointer'}`}
+                        disabled={isAdded}
+                      >
+                        闹钟 {d.wakeDest} {dest.tz} {isAdded ? '✓' : '+'}
+                      </button>
+                    </div>
+                    <p className="text-[9px] text-white/30 tracking-widest font-extralight mt-1">
+                      睡 {d.sleepOrigin} {origin.tz} · {d.dir}{d.shiftH}h · 光照 {d.intensity}%
+                    </p>
+                  </div>
+                </div>
+                );
+              })}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
