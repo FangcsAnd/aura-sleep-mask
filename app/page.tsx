@@ -283,10 +283,59 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const modeRef = useRef(mode);
   const isConnectedRef = useRef(isConnected);
+
+  const nightColors = [
+    { r: 15, g: 20, b: 80 },   // deep sapphire
+    { r: 40, g: 10, b: 70 },   // royal purple
+    { r: 10, g: 50, b: 70 },   // deep ocean
+    { r: 50, g: 15, b: 50 },   // plum night
+    { r: 10, g: 35, b: 60 },   // midnight teal
+    { r: 30, g: 10, b: 60 },   // indigo
+    { r: 20, g: 40, b: 80 },   // twilight blue
+    { r: 50, g: 20, b: 60 },   // dark orchid
+    { r: 10, g: 45, b: 55 },   // deep cyan-night
+    { r: 35, g: 15, b: 55 },   // dark violet
+    { r: 15, g: 55, b: 60 },   // teal dusk
+    { r: 45, g: 25, b: 65 },   // amethyst
+    { r: 60, g: 25, b: 15 },   // deep mahogany
+    { r: 50, g: 35, b: 10 },   // dark amber
+    { r: 15, g: 40, b: 30 },   // forest night
+    { r: 55, g: 15, b: 35 },   // dark crimson
+    { r: 20, g: 30, b: 50 },   // slate blue
+    { r: 40, g: 40, b: 15 },   // dark olive
+    { r: 60, g: 10, b: 30 },   // deep rose
+    { r: 10, g: 25, b: 45 },   // navy dusk
+  ];
+
+  const particleColors = [
+    { r: 80, g: 120, b: 255 },  // blue
+    { r: 160, g: 80, b: 255 },  // purple
+    { r: 40, g: 200, b: 180 },  // teal
+    { r: 255, g: 80, b: 180 },  // pink
+    { r: 100, g: 100, b: 255 }, // periwinkle
+    { r: 80, g: 180, b: 255 },  // sky
+    { r: 220, g: 100, b: 255 }, // orchid
+    { r: 60, g: 200, b: 220 },  // cyan
+    { r: 255, g: 120, b: 80 },  // coral
+    { r: 180, g: 80, b: 255 },  // violet
+  ];
+
+  const pick = (arr: any[]) => arr[Math.floor(Math.random() * arr.length)];
+  const colorRef = useRef({ bg1: pick(nightColors), bg2: pick(nightColors), pCol: pick(particleColors) });
+
   useEffect(() => {
     modeRef.current = mode;
     isConnectedRef.current = isConnected;
   }, [mode, isConnected]);
+
+  // Randomize colors on mode change
+  useEffect(() => {
+    colorRef.current = {
+      bg1: pick(nightColors),
+      bg2: pick(nightColors),
+      pCol: pick(particleColors),
+    };
+  }, [mode]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -298,48 +347,6 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
     let width = window.innerWidth;
     let height = window.innerHeight;
     const dpr = window.devicePixelRatio || 1;
-
-    // Rich nighttime color palettes
-    const nightColors = [
-      { r: 15, g: 20, b: 80 },   // deep sapphire
-      { r: 40, g: 10, b: 70 },   // royal purple
-      { r: 10, g: 50, b: 70 },   // deep ocean
-      { r: 50, g: 15, b: 50 },   // plum night
-      { r: 10, g: 35, b: 60 },   // midnight teal
-      { r: 30, g: 10, b: 60 },   // indigo
-      { r: 20, g: 40, b: 80 },   // twilight blue
-      { r: 50, g: 20, b: 60 },   // dark orchid
-      { r: 10, g: 45, b: 55 },   // deep cyan-night
-      { r: 35, g: 15, b: 55 },   // dark violet
-      { r: 15, g: 55, b: 60 },   // teal dusk
-      { r: 45, g: 25, b: 65 },   // amethyst
-      { r: 60, g: 25, b: 15 },   // deep mahogany
-      { r: 50, g: 35, b: 10 },   // dark amber
-      { r: 15, g: 40, b: 30 },   // forest night
-      { r: 55, g: 15, b: 35 },   // dark crimson
-      { r: 20, g: 30, b: 50 },   // slate blue
-      { r: 40, g: 40, b: 15 },   // dark olive
-      { r: 60, g: 10, b: 30 },   // deep rose
-      { r: 10, g: 25, b: 45 },   // navy dusk
-    ];
-
-    const particleColors = [
-      { r: 80, g: 120, b: 255 },  // blue
-      { r: 160, g: 80, b: 255 },  // purple
-      { r: 40, g: 200, b: 180 },  // teal
-      { r: 255, g: 80, b: 180 },  // pink
-      { r: 100, g: 100, b: 255 }, // periwinkle
-      { r: 80, g: 180, b: 255 },  // sky
-      { r: 220, g: 100, b: 255 }, // orchid
-      { r: 60, g: 200, b: 220 },  // cyan
-      { r: 255, g: 120, b: 80 },  // coral
-      { r: 180, g: 80, b: 255 },  // violet
-    ];
-
-    const pick = (arr: any[]) => arr[Math.floor(Math.random() * arr.length)];
-    const bg1 = pick(nightColors);
-    const bg2 = pick(nightColors);
-    const pCol = pick(particleColors);
 
     const setCanvasSize = () => {
       canvas.width = width * dpr;
@@ -423,9 +430,10 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
       
       ctx.globalCompositeOperation = 'source-over';
       const bgGrad = ctx.createLinearGradient(gx1, gy1, gx2, gy2);
-      bgGrad.addColorStop(0, `rgba(${bg1.r}, ${bg1.g}, ${bg1.b}, 1)`);
-      bgGrad.addColorStop(0.5, `rgba(${Math.floor((bg1.r + bg2.r) / 2)}, ${Math.floor((bg1.g + bg2.g) / 2)}, ${Math.floor((bg1.b + bg2.b) / 2)}, 1)`);
-      bgGrad.addColorStop(1, `rgba(${bg2.r}, ${bg2.g}, ${bg2.b}, 1)`);
+      const c = colorRef.current;
+      bgGrad.addColorStop(0, `rgba(${c.bg1.r}, ${c.bg1.g}, ${c.bg1.b}, 1)`);
+      bgGrad.addColorStop(0.5, `rgba(${Math.floor((c.bg1.r + c.bg2.r) / 2)}, ${Math.floor((c.bg1.g + c.bg2.g) / 2)}, ${Math.floor((c.bg1.b + c.bg2.b) / 2)}, 1)`);
+      bgGrad.addColorStop(1, `rgba(${c.bg2.r}, ${c.bg2.g}, ${c.bg2.b}, 1)`);
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
@@ -436,7 +444,7 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
       // Particles with random color
       ctx.globalCompositeOperation = 'screen';
       const intensity = 0.5 + currentBreathValue * 0.3;
-      ctx.fillStyle = `rgba(${pCol.r}, ${pCol.g}, ${pCol.b}, ${intensity})`;
+      ctx.fillStyle = `rgba(${c.pCol.r}, ${c.pCol.g}, ${c.pCol.b}, ${intensity})`;
 
       const targetT = currentBreathValue * (Math.PI / 2);
       const a = Math.cos(targetT);
