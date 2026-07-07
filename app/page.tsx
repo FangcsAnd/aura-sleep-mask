@@ -26,28 +26,26 @@ export default function App() {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [scalePulse, setScalePulse] = useState(1);
 
-    // Track scroll position for dot indicator
+    // Track which section is visible (after connected)
     useEffect(() => {
+      if (connState !== 'connected') return;
       const el = scrollRef.current;
       if (!el) return;
+      const sections = el.querySelectorAll('.snap-section');
       const tabs: Tab[] = ['therapy', 'alarms', 'jetlag'];
-      let ticking = false;
-      const update = () => {
-        const idx = Math.round(el.scrollTop / Math.max(el.clientHeight, 1));
-        const tab = tabs[Math.min(Math.max(idx, 0), tabs.length - 1)];
-        setActiveTab(tab);
-        ticking = false;
-      };
-      const handleScroll = () => {
-        if (!ticking) {
-          requestAnimationFrame(update);
-          ticking = true;
-        }
-      };
-      el.addEventListener('scroll', handleScroll, { passive: true });
-      update();
-      return () => el.removeEventListener('scroll', handleScroll);
-    }, []);
+      const observer = new IntersectionObserver(
+        (entries) => {
+          const visible = entries.filter(e => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+          if (visible.length > 0) {
+            const idx = Array.from(sections).indexOf(visible[0].target as Element);
+            if (idx >= 0 && idx < tabs.length) setActiveTab(tabs[idx]);
+          }
+        },
+        { threshold: 0.5 }
+      );
+      sections.forEach(s => observer.observe(s));
+      return () => observer.disconnect();
+    }, [connState]);
 
     const scrollToTab = (tab: Tab) => {
       const el = scrollRef.current;
@@ -128,6 +126,11 @@ export default function App() {
       className="relative w-full h-[100dvh] flex flex-col font-sans overflow-hidden bg-[#030305] text-white selection:bg-white/20"
     >
       <ChladniBackground mode={activeMode} isConnected={connState === 'connected'} />
+      
+      {/* Background blur when not in therapy */}
+      {activeTab !== 'therapy' && (
+        <div className="absolute inset-0 z-[5] backdrop-blur-sm bg-black/10 pointer-events-none transition-opacity duration-500" />
+      )}
       
       <div className="absolute inset-0 flex flex-col z-10">
         {/* Top Status Bar */}
@@ -273,12 +276,12 @@ export default function App() {
                   <TherapyView activeMode={activeMode} setActiveMode={setActiveMode} timerDuration={timerDuration} setTimerDuration={setTimerDuration} triggerHaptic={triggerHaptic} />
                 </div>
                 <div className="snap-section snap-start h-full overflow-y-auto no-scrollbar">
-                  <div className="px-4 py-8">
+                  <div className="min-h-full px-5 py-8">
                     <AlarmsView alarms={alarms} setAlarms={setAlarms} />
                   </div>
                 </div>
                 <div className="snap-section snap-start h-full overflow-y-auto no-scrollbar">
-                  <div className="px-4 py-8">
+                  <div className="min-h-full px-5 py-8">
                     <JetLagView alarms={alarms} setAlarms={setAlarms} setActiveTab={setActiveTab} />
                   </div>
                 </div>
@@ -705,8 +708,8 @@ function AlarmsView({ alarms, setAlarms }: { alarms: Alarm[]; setAlarms: React.D
                         next[i] = next[i] ? 0 : 1;
                         setEditRepeat(next);
                       }}
-                      className={`w-8 h-8 rounded-full text-[10px] font-light tracking-wider transition-all ${
-                        editRepeat[i] ? 'bg-white/15 text-white' : 'bg-transparent text-white/30'
+                      className={`w-9 h-9 rounded-full text-[12px] font-light tracking-wider transition-all ${
+                        editRepeat[i] ? 'bg-white/15 text-white' : 'bg-transparent text-white/40'
                       }`}
                     >
                       {day}
@@ -714,11 +717,11 @@ function AlarmsView({ alarms, setAlarms }: { alarms: Alarm[]; setAlarms: React.D
                   ))}
                 </div>
 
-                <div className="flex space-x-4 justify-end">
-                  <button onClick={() => deleteAlarm(alarm.id)} className="text-[10px] text-rose-400/70 hover:text-rose-400 tracking-widest uppercase">删除</button>
-                  <button onClick={() => setEditingId(null)} className="text-[10px] text-white/40 hover:text-white/70 tracking-widest uppercase">取消</button>
-                  <button onClick={saveEdit} className="text-[10px] text-white/80 hover:text-white tracking-widest uppercase">保存</button>
-                </div>
+                  <div className="flex space-x-6 justify-end pt-2">
+                    <button onClick={() => deleteAlarm(alarm.id)} className="text-[13px] text-rose-400/70 hover:text-rose-400 tracking-widest uppercase py-1">删除</button>
+                    <button onClick={() => setEditingId(null)} className="text-[13px] text-white/50 hover:text-white/80 tracking-widest uppercase py-1">取消</button>
+                    <button onClick={saveEdit} className="text-[13px] text-white/80 hover:text-white tracking-widest uppercase py-1">保存</button>
+                  </div>
               </motion.div>
             ) : (
               <button 
@@ -730,7 +733,7 @@ function AlarmsView({ alarms, setAlarms }: { alarms: Alarm[]; setAlarms: React.D
                     <h2 className={`font-display transition-all duration-700 tracking-widest ${alarm.active ? 'text-3xl text-white font-light drop-shadow-md' : 'text-3xl text-white/40 font-extralight'}`}>
                       {alarm.time}
                     </h2>
-                    <p className={`text-[9px] tracking-[0.2em] font-extralight ${alarm.active ? 'text-white/40' : 'text-white/20'}`}>
+                    <p className={`text-[11px] tracking-[0.2em] font-light ${alarm.active ? 'text-white/50' : 'text-white/30'}`}>
                       {formatRepeat(alarm.repeat)}
                     </p>
                   </div>
@@ -1056,16 +1059,16 @@ function JetLagView({ alarms, setAlarms, setActiveTab }: { alarms: Alarm[]; setA
 
           {/* Time diff + days */}
           <div className="flex items-center justify-between py-3 border-y border-white/[0.08]">
-            <span className="text-sm text-white/60 font-light tracking-wider">时差 {diff >= 0 ? '+' : ''}{diff}h</span>
-            <div className="flex items-center space-x-2">
-              <span className="text-[10px] text-white/40 font-light">适应</span>
+            <span className="text-sm text-white/70 font-light tracking-wider">时差 {diff >= 0 ? '+' : ''}{diff}h</span>
+            <div className="flex items-center space-x-3">
+              <span className="text-[12px] text-white/50 font-light">适应</span>
               <input type="range" min="1" max="7" value={days}
                 onChange={(e) => { setDays(parseInt(e.target.value)); setPlanGenerated(false); }}
-                className="w-16 h-[1px] bg-white/20 appearance-none outline-none cursor-pointer
-                  [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 
-                  [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/60"
+                className="w-24 h-1 bg-white/15 rounded-full appearance-none outline-none cursor-pointer
+                  [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 
+                  [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/70"
               />
-              <span className="text-sm text-white/60 font-light w-6">{days}天</span>
+              <span className="text-sm text-white/70 font-light w-7">{days}天</span>
             </div>
           </div>
 
@@ -1080,17 +1083,17 @@ function JetLagView({ alarms, setAlarms, setActiveTab }: { alarms: Alarm[]; setA
           <div className="flex items-center justify-between">
             <div>
               <p className="text-lg text-white font-light tracking-wider">{origin.name} → {dest.name}</p>
-              <p className="text-[10px] text-white/40 font-extralight tracking-wider mt-0.5">时差 {diff >= 0 ? '+' : ''}{diff}h · {days}天适应</p>
+              <p className="text-[11px] text-white/50 font-extralight tracking-wider mt-0.5">时差 {diff >= 0 ? '+' : ''}{diff}h · {days}天适应</p>
             </div>
             <button onClick={() => setPlanGenerated(false)}
-              className="text-[10px] text-white/40 hover:text-white/70 tracking-wider">← 调整</button>
+              className="text-[12px] text-white/40 hover:text-white/70 tracking-wider py-1">← 调整</button>
           </div>
 
           {/* Target schedule */}
           <div className="border border-white/[0.08] bg-white/[0.02] p-4 space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-[11px] text-white/40 font-light tracking-wider">目标作息 · {dest.name}</span>
-              <span className="text-sm text-white/70 font-light tracking-wider">睡 {padTime(bedHour, bedMin)} → 起 {padTime(wakeHour, wakeMin)}</span>
+              <span className="text-[12px] text-white/50 font-light tracking-wider">目标作息 · {dest.name}</span>
+              <span className="text-base text-white/70 font-light tracking-wider">睡 {padTime(bedHour, bedMin)} → 起 {padTime(wakeHour, wakeMin)}</span>
             </div>
             
             {planDays.map((d, i) => {
@@ -1098,8 +1101,8 @@ function JetLagView({ alarms, setAlarms, setActiveTab }: { alarms: Alarm[]; setA
               return (
                 <div key={i} className="flex items-center justify-between py-2 border-t border-white/[0.04]">
                   <div>
-                    <p className="text-[12px] text-white/70 font-light tracking-wider">第 {d.day} 天</p>
-                    <p className="text-[10px] text-white/40 font-extralight tracking-wider mt-0.5">
+                    <p className="text-[13px] text-white/80 font-light tracking-wider">第 {d.day} 天</p>
+                    <p className="text-[11px] text-white/50 font-extralight tracking-wider mt-0.5">
                       睡 {d.sleepOrigin} · {d.dir}{d.shiftH}h · 光照 {d.intensity}%
                     </p>
                   </div>

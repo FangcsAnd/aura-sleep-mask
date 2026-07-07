@@ -22,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${space.variable} dark`}>
+    <html lang="en" className={`${inter.variable} ${space.variable} dark`} suppressHydrationWarning>
       <body className="bg-black text-white antialiased overflow-hidden selection:bg-white/20">
         {children}
       </body>
