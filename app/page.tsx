@@ -612,14 +612,14 @@ function TherapyView({ activeMode, setActiveMode, timerDuration, setTimerDuratio
       {/* Timer bar */}
       <div className="absolute bottom-6 left-4 right-4 z-20">
         <div className="flex items-center space-x-3">
-          <span className="text-[10px] text-white/30 font-extralight tracking-wider shrink-0">定时</span>
+          <span className="text-xs text-white/70 font-light tracking-wider shrink-0">定时</span>
           <input type="range" min="5" max="60" step="5" value={timerDuration}
             onChange={(e) => setTimerDuration(parseInt(e.target.value))}
-            className="flex-1 h-[1px] bg-white/10 appearance-none outline-none cursor-pointer
-              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 
-              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/60"
+            className="flex-1 h-[1px] bg-white/15 appearance-none outline-none cursor-pointer
+              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 
+              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/70"
           />
-          <span className="text-[10px] text-white/30 font-extralight tracking-wider shrink-0">{timerDuration}min</span>
+          <span className="text-xs text-white/70 font-light tracking-wider shrink-0">{timerDuration}m</span>
         </div>
       </div>
     </motion.div>
