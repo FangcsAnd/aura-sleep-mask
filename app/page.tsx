@@ -16,14 +16,48 @@ type Alarm = {
 };
 
 export default function App() {
-  const [isConnected, setIsConnected] = useState(false);
+  const [connState, setConnState] = useState<'idle' | 'connecting' | 'failed' | 'connected'>('idle');
+  const [connProgress, setConnProgress] = useState(0);
   const [batteryLevel, setBatteryLevel] = useState(100);
   const [activeMode, setActiveMode] = useState<Mode>('off');
   const [timerDuration, setTimerDuration] = useState(30);
-  const [activeTab, setActiveTab] = useState<Tab>('therapy');
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [showUI, setShowUI] = useState(true);
-  const [scalePulse, setScalePulse] = useState(1);
+    const [activeTab, setActiveTab] = useState<Tab>('therapy');
+    const [panelTab, setPanelTab] = useState<Tab | null>(null);
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [scalePulse, setScalePulse] = useState(1);
+
+    // Track scroll position for dot indicator
+    useEffect(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const tabs: Tab[] = ['therapy', 'alarms', 'jetlag'];
+      let ticking = false;
+      const update = () => {
+        const idx = Math.round(el.scrollTop / Math.max(el.clientHeight, 1));
+        const tab = tabs[Math.min(Math.max(idx, 0), tabs.length - 1)];
+        setActiveTab(tab);
+        ticking = false;
+      };
+      const handleScroll = () => {
+        if (!ticking) {
+          requestAnimationFrame(update);
+          ticking = true;
+        }
+      };
+      el.addEventListener('scroll', handleScroll, { passive: true });
+      update();
+      return () => el.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    const scrollToTab = (tab: Tab) => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const tabs: Tab[] = ['therapy', 'alarms', 'jetlag'];
+      const idx = tabs.indexOf(tab);
+      setActiveTab(tab);
+      el.scrollTo({ top: idx * el.clientHeight, behavior: 'smooth' });
+    };
+  const connTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [alarms, setAlarms] = useState<Alarm[]>([
     { id: 1, time: '07:00', label: '晨间唤醒', active: true, repeat: [1, 1, 1, 1, 1, 0, 0] },
     { id: 2, time: '08:30', label: '周末赖床', active: false, repeat: [0, 0, 0, 0, 0, 1, 1] },
@@ -42,39 +76,49 @@ export default function App() {
     }
   };
 
-  const handleConnect = () => {
-    setIsConnecting(true);
-    triggerHaptic('light');
+  const startConnect = () => {
+    setConnState('connecting');
+    setConnProgress(0);
+    connTimer.current = setInterval(() => {
+      setConnProgress(p => {
+        const next = p + 3;
+        if (next >= 100) {
+          clearInterval(connTimer.current!);
+          return 100;
+        }
+        return next;
+      });
+    }, 100);
     setTimeout(() => {
-      setIsConnected(true);
-      setIsConnecting(false);
-      setBatteryLevel(85);
-      setActiveMode('mindfulness');
-      triggerHaptic('heavy');
-    }, 1000);
+      if (connTimer.current) clearInterval(connTimer.current);
+      setConnProgress(100);
+      setConnState('failed');
+    }, 3500);
   };
 
+  const retryConnect = () => {
+    setConnState('connecting');
+    setConnProgress(0);
+    connTimer.current = setInterval(() => {
+      setConnProgress(p => {
+        const next = p + 3;
+        if (next >= 100) {
+          clearInterval(connTimer.current!);
+          return 100;
+        }
+        return next;
+      });
+    }, 100);
+    setTimeout(() => {
+      if (connTimer.current) clearInterval(connTimer.current);
+      setConnProgress(100);
+      setConnState('connected');
+    }, 3500);
+  };
+
+  // Cleanup timer on unmount
   useEffect(() => {
-    const handleInteraction = () => {
-      setShowUI(true);
-      if (uiTimeoutRef.current) clearTimeout(uiTimeoutRef.current);
-      uiTimeoutRef.current = setTimeout(() => {
-        setShowUI(false);
-      }, 4000);
-    };
-
-    window.addEventListener('mousemove', handleInteraction);
-    window.addEventListener('touchstart', handleInteraction);
-    window.addEventListener('click', handleInteraction);
-    
-    handleInteraction();
-
-    return () => {
-      window.removeEventListener('mousemove', handleInteraction);
-      window.removeEventListener('touchstart', handleInteraction);
-      window.removeEventListener('click', handleInteraction);
-      if (uiTimeoutRef.current) clearTimeout(uiTimeoutRef.current);
-    };
+    return () => { if (connTimer.current) clearInterval(connTimer.current); };
   }, []);
 
   return (
@@ -83,42 +127,22 @@ export default function App() {
       transition={{ type: "spring", stiffness: 400, damping: 20 }}
       className="relative w-full h-[100dvh] flex flex-col font-sans overflow-hidden bg-[#030305] text-white selection:bg-white/20"
     >
-      {/* Subtle Ambient Aura */}
-      <motion.div 
-        className="absolute inset-0 z-0 pointer-events-none"
-        animate={{
-          background: activeMode === 'mindfulness' 
-            ? 'radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.05) 0%, rgba(3, 3, 5, 1) 70%)'
-            : activeMode === 'resonance'
-            ? 'radial-gradient(circle at 50% 50%, rgba(45, 212, 191, 0.05) 0%, rgba(3, 3, 5, 1) 70%)'
-            : activeMode === '478'
-            ? 'radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.05) 0%, rgba(3, 3, 5, 1) 70%)'
-            : 'radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.01) 0%, rgba(3, 3, 5, 1) 70%)'
-        }}
-        transition={{ duration: 2 }}
-      />
-
-      <ChladniBackground mode={activeMode} isConnected={isConnected} />
+      <ChladniBackground mode={activeMode} isConnected={connState === 'connected'} />
       
-      {/* Dark overlay for better readability in Alarms and Jetlag views */}
-      <div 
-        className={`absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity duration-1000 pointer-events-none z-0 ${activeTab !== 'therapy' ? 'opacity-100' : 'opacity-0'}`} 
-      />
-
-      <div className={`absolute inset-0 flex flex-col z-10 transition-opacity duration-1000 ${showUI || activeTab !== 'therapy' ? 'opacity-100' : 'opacity-0'}`}>
-        {/* Top Status Bar - Minimal Ethereal */}
+      <div className="absolute inset-0 flex flex-col z-10">
+        {/* Top Status Bar */}
         <header className="relative w-full px-8 py-8 flex justify-between items-center pointer-events-none">
           <div className="flex items-center space-x-3">
             <motion.div 
-              className={`w-1 h-1 rounded-full ${isConnected ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]' : 'bg-white/20'}`}
-              animate={{ opacity: isConnected ? [0.3, 1, 0.3] : 1 }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className={`w-1 h-1 rounded-full ${connState === 'connected' ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]' : connState === 'connecting' ? 'bg-white/60' : 'bg-white/20'}`}
+              animate={{ opacity: connState === 'connected' ? [0.3, 1, 0.3] : connState === 'connecting' ? [0.5, 1, 0.5] : 1 }}
+              transition={{ duration: connState === 'connecting' ? 1 : 4, repeat: Infinity, ease: "easeInOut" }}
             />
             <span className="text-[12px] tracking-[0.4em] uppercase font-light text-white/90 drop-shadow-md">
-              {isConnected ? 'Dreamlight 已连接' : 'Dreamlight 待命'}
+              {connState === 'connected' ? 'Dreamlight 已连接' : connState === 'connecting' ? 'Dreamlight 连接中…' : 'Dreamlight 待命'}
             </span>
           </div>
-          {isConnected && (
+          {connState === 'connected' && (
             <div className="flex items-center space-x-3 text-white/90 drop-shadow-md">
               <span className="text-[12px] tracking-[0.3em] font-light">{batteryLevel}%</span>
               {batteryLevel > 70 ? (
@@ -132,127 +156,138 @@ export default function App() {
           )}
         </header>
 
-        {/* Main Content Area */}
-        <main className="relative flex-1 flex flex-col justify-center px-8 pb-24 pointer-events-none">
-          <div className="pointer-events-auto h-full flex flex-col justify-center">
-            <AnimatePresence mode="wait">
-              {!isConnected ? (
-                <motion.div 
-                  key="connect"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 1.05, filter: 'blur(20px)' }}
-                  transition={{ duration: 1.5, ease: "easeInOut" }}
-                  className="absolute inset-0 flex flex-col items-center justify-center space-y-32"
-                >
-                  <div className="text-center space-y-6">
-                    <img 
-                      src="logo.png" 
-                      alt="Dreamlight" 
-                      className="h-12 md:h-16 w-auto mx-auto drop-shadow-sm opacity-90"
-                    />
-                    <p className="text-[12px] tracking-[0.6em] uppercase text-white/60 font-light drop-shadow-md">
-                      沉浸式声光共振
-                    </p>
-                  </div>
+        {/* Main Content */}
+        <main className="relative flex-1 flex flex-col justify-center px-8 pb-24">
+          {connState !== 'connected' ? (
+            <div className="flex flex-col items-center justify-center space-y-10">
+              {/* Logo */}
+              <div className="text-center space-y-6">
+                <img src="logo.png" alt="Dreamlight" className="h-12 md:h-16 w-auto mx-auto drop-shadow-sm opacity-90" />
+                <p className="text-[12px] tracking-[0.6em] uppercase text-white/60 font-light drop-shadow-md">沉浸式声光共振</p>
+              </div>
 
-                  <button
-                    onClick={handleConnect}
-                    disabled={isConnecting}
-                    className="group relative flex items-center justify-center w-32 h-32 outline-none cursor-pointer"
-                  >
-                    <motion.div
-                      className="absolute inset-0 rounded-full"
-                      animate={{
-                        boxShadow: isConnecting 
-                          ? ['0 0 20px rgba(255,255,255,0.05)', '0 0 50px rgba(255,255,255,0.1)', '0 0 20px rgba(255,255,255,0.05)'] 
-                          : '0 0 10px rgba(255,255,255,0.02)'
-                      }}
-                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                    />
-
-                    <motion.div
-                      className="absolute inset-4 rounded-full bg-transparent border-[0.5px] border-white/20 overflow-hidden flex items-center justify-center backdrop-blur-sm"
-                      animate={{ 
-                        scale: isConnecting ? [0.98, 1.02, 0.98] : 1,
-                        borderColor: isConnecting ? ['rgba(255,255,255,0.2)', 'rgba(255,255,255,0.5)', 'rgba(255,255,255,0.2)'] : 'rgba(255,255,255,0.2)'
-                      }}
-                      transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                      <Moon className={`w-6 h-6 transition-all duration-1000 ${isConnecting ? 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.8)]' : 'text-white/70 group-hover:text-white'}`} strokeWidth={0.5} />
-                    </motion.div>
-
-                    <div className="absolute -bottom-12 flex flex-col items-center justify-center">
-                      <span className={`text-[12px] tracking-[0.5em] uppercase font-light transition-colors duration-1000 ${isConnecting ? 'text-white drop-shadow-sm' : 'text-white/70 group-hover:text-white'}`}>
-                        {isConnecting ? '唤醒中' : '触碰以连接'}
-                      </span>
+              {/* Idle: connect button */}
+              {connState === 'idle' && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center space-y-10">
+                  <button onClick={startConnect} className="group relative flex items-center justify-center w-48 h-48 outline-none cursor-pointer">
+                    <motion.div className="absolute inset-2 rounded-full border border-white/10" animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }} />
+                    <motion.div className="absolute inset-6 rounded-full border border-white/[0.06]" animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }} />
+                    <div className="absolute inset-8 rounded-full bg-white/[0.03] border border-white/20 flex items-center justify-center backdrop-blur-sm group-hover:bg-white/[0.06] transition-all duration-700">
+                      <Moon className="w-6 h-6 text-white/60 group-hover:text-white/90 transition-all duration-500" strokeWidth={0.5} />
                     </div>
                   </button>
-                </motion.div>
-              ) : (
-                <motion.div 
-                  key="app"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.8, delay: 0 }}
-                  className="h-full flex flex-col justify-center max-w-sm mx-auto w-full"
-                >
-                  {activeTab === 'therapy' && (
-                    <TherapyView 
-                      activeMode={activeMode} 
-                      setActiveMode={setActiveMode}
-                      timerDuration={timerDuration}
-                      setTimerDuration={setTimerDuration}
-                      triggerHaptic={triggerHaptic}
-                    />
-                  )}
-                  {activeTab === 'alarms' && <AlarmsView alarms={alarms} setAlarms={setAlarms} />}
-                  {activeTab === 'jetlag' && <JetLagView alarms={alarms} setAlarms={setAlarms} setActiveTab={setActiveTab} />}
+                  <span className="text-lg tracking-[0.3em] uppercase font-medium text-white/70">连接设备</span>
                 </motion.div>
               )}
-            </AnimatePresence>
-          </div>
-        </main>
 
-        {/* Elegant Bottom Navigation */}
-        <AnimatePresence>
-          {isConnected && (
-            <motion.nav
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 1.5, delay: 0.8 }}
-              className="absolute bottom-0 w-full pb-safe pt-24 z-20 bg-gradient-to-t from-[#030305]/80 via-[#030305]/40 to-transparent pointer-events-none"
-            >
-              <div className="flex justify-center space-x-12 pb-8 pointer-events-auto">
-                <NavButton label="光疗" isActive={activeTab === 'therapy'} onClick={() => setActiveTab('therapy')} />
-                <NavButton label="唤醒" isActive={activeTab === 'alarms'} onClick={() => setActiveTab('alarms')} />
-                <NavButton label="时差" isActive={activeTab === 'jetlag'} onClick={() => setActiveTab('jetlag')} />
+              {/* Connecting: animated ring progress */}
+              {connState === 'connecting' && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center space-y-8">
+                  <div className="relative w-32 h-32 flex items-center justify-center">
+                    <svg className="w-full h-full -rotate-90" viewBox="0 0 128 128">
+                      <circle cx="64" cy="64" r="58" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2" />
+                      <circle cx="64" cy="64" r="58" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round"
+                        strokeDasharray={2 * Math.PI * 58} strokeDashoffset={2 * Math.PI * 58 * (1 - connProgress / 100)} />
+                    </svg>
+                    <Moon className="absolute w-6 h-6 text-white/50" strokeWidth={0.5} />
+                  </div>
+                  <p className="text-base text-white/50 font-light tracking-wider">正在搜索设备</p>
+                </motion.div>
+              )}
+
+              {/* Failed: modal overlay */}
+              {connState === 'failed' && (
+                <motion.div
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-8"
+                >
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    className="w-full max-w-xs flex flex-col items-center space-y-8 text-center"
+                  >
+                    <div className="flex flex-col items-center space-y-3">
+                      <div className="w-16 h-16 rounded-full border border-white/15 flex items-center justify-center">
+                        <Moon className="w-6 h-6 text-white/40" strokeWidth={0.5} />
+                      </div>
+                      <p className="text-lg text-white/60 font-light tracking-wider">连接失败</p>
+                      <p className="text-xs text-white/30 font-extralight tracking-wider">请按以下步骤操作后重试</p>
+                    </div>
+
+                    <div className="w-full space-y-4">
+                      {[
+                        { step: '1', text: '长按眼罩侧边按钮 3 秒开机' },
+                        { step: '2', text: '确认指示灯为蓝色慢闪' },
+                        { step: '3', text: '将眼罩靠近手机 10cm 以内' },
+                      ].map((s) => (
+                        <div key={s.step} className="flex items-center space-x-4">
+                          <span className="w-7 h-7 rounded-full border border-white/15 flex items-center justify-center text-[11px] text-white/40 font-light shrink-0">{s.step}</span>
+                          <span className="text-sm text-white/50 font-extralight tracking-wider">{s.text}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <motion.button
+                      onClick={retryConnect}
+                      className="w-full py-4 border border-white/20 text-white/70 hover:text-white hover:border-white/30 transition-all cursor-pointer"
+                      animate={{ opacity: [0.6, 1, 0.6] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    >
+                      <span className="text-sm tracking-wider font-light">我已打开设备蓝牙 点我连接</span>
+                    </motion.button>
+                  </motion.div>
+                </motion.div>
+              )}
+            </div>
+          ) : (
+            <div className="absolute inset-0 top-[72px] flex">
+              {/* Left indicator dots */}
+              <nav className="w-14 shrink-0 flex flex-col items-center justify-center space-y-8 border-r border-white/[0.04]">
+                {[
+                  { id: 'therapy' as Tab, label: '光疗' },
+                  { id: 'alarms' as Tab, label: '唤醒' },
+                  { id: 'jetlag' as Tab, label: '时差' },
+                ].map((tab) => {
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => scrollToTab(tab.id)}
+                      className="flex flex-col items-center space-y-1"
+                    >
+                      <div className={`w-1.5 h-1.5 rounded-full transition-all ${isActive ? 'bg-white shadow-[0_0_6px_rgba(255,255,255,0.5)]' : 'bg-white/30'}`} />
+                      <span className={`text-[10px] tracking-[0.3em] uppercase font-light transition-colors ${isActive ? 'text-white' : 'text-white/50 hover:text-white/80'}`}>
+                        {tab.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </nav>
+
+              {/* Scrollable vertical pages */}
+              <div
+                ref={scrollRef}
+                className="flex-1 overflow-y-scroll snap-y snap-mandatory no-scrollbar"
+              >
+                <div className="snap-section snap-start h-full flex flex-col justify-center px-4">
+                  <TherapyView activeMode={activeMode} setActiveMode={setActiveMode} timerDuration={timerDuration} setTimerDuration={setTimerDuration} triggerHaptic={triggerHaptic} />
+                </div>
+                <div className="snap-section snap-start h-full overflow-y-auto no-scrollbar">
+                  <div className="px-4 py-8">
+                    <AlarmsView alarms={alarms} setAlarms={setAlarms} />
+                  </div>
+                </div>
+                <div className="snap-section snap-start h-full overflow-y-auto no-scrollbar">
+                  <div className="px-4 py-8">
+                    <JetLagView alarms={alarms} setAlarms={setAlarms} setActiveTab={setActiveTab} />
+                  </div>
+                </div>
               </div>
-            </motion.nav>
+            </div>
           )}
-        </AnimatePresence>
+        </main>
       </div>
     </motion.div>
-  );
-}
-
-function NavButton({ label, isActive, onClick }: { label: string, isActive: boolean, onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`relative px-4 py-2 transition-all duration-1000 ${
-        isActive ? 'text-white' : 'text-white/50 hover:text-white/80'
-      }`}
-    >
-      <span className="text-[12px] font-extralight tracking-[0.4em] uppercase">{label}</span>
-      {isActive && (
-        <motion.div 
-          layoutId="navIndicator"
-          className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]"
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        />
-      )}
-    </button>
   );
 }
 
@@ -269,8 +304,8 @@ const breathProfiles: Record<Mode, BreathProfile> = {
     { duration: 2, start: 0, end: 0 }
   ],
   resonance: [
-    { duration: 6, start: 0, end: 1 },
-    { duration: 6, start: 1, end: 0 }
+    { duration: 5, start: 0, end: 1 },
+    { duration: 5, start: 1, end: 0 }
   ],
   '478': [
     { duration: 4, start: 0, end: 1 },
@@ -431,9 +466,14 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
       ctx.globalCompositeOperation = 'source-over';
       const bgGrad = ctx.createLinearGradient(gx1, gy1, gx2, gy2);
       const c = colorRef.current;
-      bgGrad.addColorStop(0, `rgba(${c.bg1.r}, ${c.bg1.g}, ${c.bg1.b}, 1)`);
-      bgGrad.addColorStop(0.5, `rgba(${Math.floor((c.bg1.r + c.bg2.r) / 2)}, ${Math.floor((c.bg1.g + c.bg2.g) / 2)}, ${Math.floor((c.bg1.b + c.bg2.b) / 2)}, 1)`);
-      bgGrad.addColorStop(1, `rgba(${c.bg2.r}, ${c.bg2.g}, ${c.bg2.b}, 1)`);
+      const breathShift = 0.5 + (currentBreathValue - 0.5) * 0.3;
+      const midR = Math.floor(c.bg1.r + (c.bg2.r - c.bg1.r) * breathShift);
+      const midG = Math.floor(c.bg1.g + (c.bg2.g - c.bg1.g) * breathShift);
+      const midB = Math.floor(c.bg1.b + (c.bg2.b - c.bg1.b) * breathShift);
+      const alpha = 0.85 + currentBreathValue * 0.15;
+      bgGrad.addColorStop(0, `rgba(${c.bg1.r}, ${c.bg1.g}, ${c.bg1.b}, ${alpha})`);
+      bgGrad.addColorStop(breathShift, `rgba(${midR}, ${midG}, ${midB}, ${alpha})`);
+      bgGrad.addColorStop(1, `rgba(${c.bg2.r}, ${c.bg2.g}, ${c.bg2.b}, ${alpha})`);
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, width, height);
 
@@ -450,7 +490,7 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
       const a = Math.cos(targetT);
       const b = Math.sin(targetT);
       
-      const scaleFactor = 1.0 + currentBreathValue * 0.2;
+      const scaleFactor = 1.0 + currentBreathValue * 0.15;
       const size = Math.max(width, height) * scaleFactor;
       const offsetX = (width - size) / 2;
       const offsetY = (height - size) / 2;
@@ -519,9 +559,9 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
 
 function TherapyView({ activeMode, setActiveMode, timerDuration, setTimerDuration, triggerHaptic }: any) {
   const modes = [
-    { id: 'mindfulness', label: '正念', desc: '声光流转' },
-    { id: 'resonance', label: '共振', desc: '克拉尼律动' },
-    { id: '478', label: '深眠', desc: '4-7-8 频率' },
+    { id: 'mindfulness', label: '觉察', desc: '入门 · 正念呼吸' },
+    { id: 'resonance', label: '放松', desc: '进阶 · 共振呼吸' },
+    { id: '478', label: '深眠', desc: '强化 · 4-7-8 呼吸' },
   ];
 
   return (
@@ -531,30 +571,7 @@ function TherapyView({ activeMode, setActiveMode, timerDuration, setTimerDuratio
       exit={{ opacity: 0, x: -10 }}
       className="flex flex-col h-full justify-center relative w-full"
     >
-      {/* Horizontal sleek timer slider */}
-      <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center justify-center space-y-4 z-20 pointer-events-auto opacity-40 hover:opacity-100 transition-opacity duration-1000">
-        <div className="flex flex-col items-center space-y-1">
-          <span className="text-[12px] tracking-widest font-extralight text-white/80">定时关闭</span>
-          <span className="text-[12px] tracking-[0.4em] font-extralight text-white uppercase">
-            {timerDuration} MIN
-          </span>
-        </div>
-        <input 
-          type="range"
-          min="5" max="60" step="5"
-          value={timerDuration}
-          onChange={(e) => {
-            const val = parseInt(e.target.value);
-            setTimerDuration(val);
-          }}
-          className="w-64 max-w-[80%] h-[1px] bg-gradient-to-r from-transparent via-white/30 to-transparent appearance-none outline-none cursor-pointer 
-            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2 [&::-webkit-slider-thumb]:h-2 
-            [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_15px_rgba(255,255,255,1)]
-            [&::-webkit-slider-thumb]:cursor-grab active:[&::-webkit-slider-thumb]:cursor-grabbing hover:[&::-webkit-slider-thumb]:scale-150 transition-all"
-        />
-      </div>
-
-      <div className="flex flex-col space-y-10 pl-4">
+      <div className="flex flex-col space-y-5 pl-4">
         {modes.map((mode) => {
           const isActive = activeMode === mode.id;
           return (
@@ -564,7 +581,7 @@ function TherapyView({ activeMode, setActiveMode, timerDuration, setTimerDuratio
                 triggerHaptic('medium');
                 setActiveMode(isActive ? 'off' : mode.id);
               }}
-              className={`text-left group transition-all duration-1000 relative pl-8 py-2 w-max outline-none ${isActive ? 'opacity-100' : 'opacity-50 hover:opacity-90'}`}
+              className={`text-left group transition-all duration-700 relative pl-8 py-1 w-max outline-none ${isActive ? 'opacity-100' : 'opacity-40 hover:opacity-80'}`}
             >
               {isActive && (
                 <motion.div 
@@ -572,17 +589,38 @@ function TherapyView({ activeMode, setActiveMode, timerDuration, setTimerDuratio
                   className="absolute left-0 top-1/2 -translate-y-1/2 h-[40%] w-[1px] bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)]"
                 />
               )}
-              <h2 className={`font-display tracking-[0.3em] transition-transform duration-1000 origin-left text-2xl ${isActive ? 'font-normal text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] scale-110' : 'font-light text-white/90 drop-shadow-sm scale-100'}`}>
+              <h2 className={`font-display tracking-[0.3em] transition-transform duration-700 origin-left text-2xl ${isActive ? 'font-normal text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] scale-110' : 'font-light text-white/90 drop-shadow-sm scale-100'}`}>
                 {mode.label}
               </h2>
-              <div className={`overflow-hidden transition-all duration-1000 ease-out ${isActive ? 'max-h-8 opacity-100 mt-2' : 'max-h-0 opacity-0 mt-0'}`}>
-                <p className="text-[12px] tracking-[0.4em] text-white/90 font-light uppercase drop-shadow-sm">
-                  {mode.desc}
-                </p>
-              </div>
+              <AnimatePresence>
+                {isActive && (
+                  <motion.p
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="text-[11px] tracking-[0.4em] text-white/80 font-light uppercase mt-1.5 overflow-hidden"
+                  >
+                    {mode.desc}
+                  </motion.p>
+                )}
+              </AnimatePresence>
             </button>
           );
         })}
+      </div>
+
+      {/* Timer bar */}
+      <div className="absolute bottom-6 left-4 right-4 z-20">
+        <div className="flex items-center space-x-3">
+          <span className="text-[10px] text-white/30 font-extralight tracking-wider shrink-0">定时</span>
+          <input type="range" min="5" max="60" step="5" value={timerDuration}
+            onChange={(e) => setTimerDuration(parseInt(e.target.value))}
+            className="flex-1 h-[1px] bg-white/10 appearance-none outline-none cursor-pointer
+              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 
+              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/60"
+          />
+          <span className="text-[10px] text-white/30 font-extralight tracking-wider shrink-0">{timerDuration}min</span>
+        </div>
       </div>
     </motion.div>
   );
@@ -638,7 +676,7 @@ function AlarmsView({ alarms, setAlarms }: { alarms: Alarm[]; setAlarms: React.D
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 1.02 }}
-      className="flex flex-col h-[60vh] justify-start px-4 overflow-y-auto no-scrollbar pb-8"
+      className="flex flex-col min-h-0 justify-start overflow-y-auto no-scrollbar pb-8"
     >
       <div className="flex flex-col space-y-4">
         {alarms.map(alarm => (
@@ -946,52 +984,150 @@ function JetLagView({ alarms, setAlarms, setActiveTab }: { alarms: Alarm[]; setA
       initial={{ opacity: 0, x: 10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 10 }}
-      className="flex flex-col overflow-y-auto no-scrollbar space-y-6 px-4 py-4 h-[60vh] pb-8"
+      className="flex flex-col overflow-y-auto no-scrollbar space-y-5 py-4 pb-8"
     >
-      {/* City selectors */}
-      <div className="flex flex-col space-y-3">
-        {([
-          { which: 'origin' as const, label: '出发地', city: origin },
-          { which: 'dest' as const, label: '目的地', city: dest },
-        ]).map((s, si) => (
-          <div key={si}>
-            {si === 1 && (
-              <div className="flex justify-center pb-2">
-                <div className="w-px h-5 bg-gradient-to-b from-white/10 via-white/30 to-white/10" />
+      {!planGenerated ? (
+        <>
+          {/* City selectors */}
+          <div className="flex flex-col space-y-3">
+            {([
+              { which: 'origin' as const, label: '出发地', city: origin },
+              { which: 'dest' as const, label: '目的地', city: dest },
+            ]).map((s, si) => (
+              <div key={si}>
+                {si === 1 && (
+                  <div className="flex justify-center pb-2">
+                    <div className="w-px h-5 bg-gradient-to-b from-white/10 via-white/30 to-white/10" />
+                  </div>
+                )}
+                <p className="text-[11px] tracking-[0.3em] text-white/60 font-light uppercase mb-1.5">{s.label}</p>
+                <button
+                  onClick={() => { setPickerOpen(s.which); setSearch(''); }}
+                  className="w-full flex items-center justify-between px-3 py-3 border border-white/10 hover:bg-white/[0.04] transition-colors"
+                >
+                  <span className="text-white text-sm font-light tracking-wider">{s.city.name}</span>
+                  <span className="text-white/40 text-xs tracking-wider">{s.city.tz}</span>
+                </button>
               </div>
-            )}
-            <p className="text-[10px] tracking-[0.4em] text-white/50 font-light uppercase mb-1.5">{s.label}</p>
-            <button
-              onClick={() => { setPickerOpen(s.which); setSearch(''); }}
-              className="w-full flex items-center justify-between px-3 py-3 border border-white/10 bg-transparent hover:bg-white/[0.03] transition-colors"
-            >
-              <span className="text-white text-sm font-light tracking-wider">{s.city.name}</span>
-              <span className="text-white/30 text-xs tracking-wider">{s.city.tz}</span>
-            </button>
+            ))}
           </div>
-        ))}
-      </div>
+
+          {/* Date picker */}
+          <div className="space-y-1.5">
+            <p className="text-[11px] tracking-[0.3em] text-white/60 font-light uppercase">出发日期</p>
+            <input
+              type="date"
+              defaultValue={new Date().toISOString().split('T')[0]}
+              className="w-full bg-transparent border border-white/10 px-3 py-3 text-white text-sm font-light tracking-wider outline-none [color-scheme:dark]"
+            />
+          </div>
+
+          {/* Sleep schedule */}
+          <div className="grid grid-cols-2 gap-4 py-2">
+            <div className="space-y-1.5">
+              <p className="text-[11px] tracking-[0.2em] text-white/50 font-light">{origin.name} 入睡</p>
+              <div className="flex items-baseline space-x-1">
+                <select value={bedHour} onChange={e => { setBedHour(+e.target.value); setPlanGenerated(false); }}
+                  className="bg-transparent text-white text-xl font-light tracking-wider outline-none appearance-none cursor-pointer [color-scheme:dark]">
+                  {Array.from({length:24}, (_,i) => <option key={i} value={i} className="bg-[#0a0a12]">{i.toString().padStart(2,'0')}</option>)}
+                </select>
+                <span className="text-white/30 text-lg">:</span>
+                <select value={bedMin} onChange={e => { setBedMin(+e.target.value); setPlanGenerated(false); }}
+                  className="bg-transparent text-white text-xl font-light tracking-wider outline-none appearance-none cursor-pointer [color-scheme:dark]">
+                  {[0,30].map(m => <option key={m} value={m} className="bg-[#0a0a12]">{m.toString().padStart(2,'0')}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-[11px] tracking-[0.2em] text-white/50 font-light">{origin.name} 起床</p>
+              <div className="flex items-baseline space-x-1">
+                <select value={wakeHour} onChange={e => { setWakeHour(+e.target.value); setPlanGenerated(false); }}
+                  className="bg-transparent text-white text-xl font-light tracking-wider outline-none appearance-none cursor-pointer [color-scheme:dark]">
+                  {Array.from({length:24}, (_,i) => <option key={i} value={i} className="bg-[#0a0a12]">{i.toString().padStart(2,'0')}</option>)}
+                </select>
+                <span className="text-white/30 text-lg">:</span>
+                <select value={wakeMin} onChange={e => { setWakeMin(+e.target.value); setPlanGenerated(false); }}
+                  className="bg-transparent text-white text-xl font-light tracking-wider outline-none appearance-none cursor-pointer [color-scheme:dark]">
+                  {[0,30].map(m => <option key={m} value={m} className="bg-[#0a0a12]">{m.toString().padStart(2,'0')}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Time diff + days */}
+          <div className="flex items-center justify-between py-3 border-y border-white/[0.08]">
+            <span className="text-sm text-white/60 font-light tracking-wider">时差 {diff >= 0 ? '+' : ''}{diff}h</span>
+            <div className="flex items-center space-x-2">
+              <span className="text-[10px] text-white/40 font-light">适应</span>
+              <input type="range" min="1" max="7" value={days}
+                onChange={(e) => { setDays(parseInt(e.target.value)); setPlanGenerated(false); }}
+                className="w-16 h-[1px] bg-white/20 appearance-none outline-none cursor-pointer
+                  [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 
+                  [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/60"
+              />
+              <span className="text-sm text-white/60 font-light w-6">{days}天</span>
+            </div>
+          </div>
+
+          <button onClick={handleGenerate} disabled={generating}
+            className="w-full py-3 border border-white/15 text-white/70 hover:bg-white/5 transition-colors">
+            <span className="text-sm tracking-[0.2em] font-light">{generating ? '生成中…' : '生成适配计划'}</span>
+          </button>
+        </>
+      ) : (
+        <>
+          {/* Plan header */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-lg text-white font-light tracking-wider">{origin.name} → {dest.name}</p>
+              <p className="text-[10px] text-white/40 font-extralight tracking-wider mt-0.5">时差 {diff >= 0 ? '+' : ''}{diff}h · {days}天适应</p>
+            </div>
+            <button onClick={() => setPlanGenerated(false)}
+              className="text-[10px] text-white/40 hover:text-white/70 tracking-wider">← 调整</button>
+          </div>
+
+          {/* Target schedule */}
+          <div className="border border-white/[0.08] bg-white/[0.02] p-4 space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-[11px] text-white/40 font-light tracking-wider">目标作息 · {dest.name}</span>
+              <span className="text-sm text-white/70 font-light tracking-wider">睡 {padTime(bedHour, bedMin)} → 起 {padTime(wakeHour, wakeMin)}</span>
+            </div>
+            
+            {planDays.map((d, i) => {
+              const isAdded = addedDays.has(d.day);
+              return (
+                <div key={i} className="flex items-center justify-between py-2 border-t border-white/[0.04]">
+                  <div>
+                    <p className="text-[12px] text-white/70 font-light tracking-wider">第 {d.day} 天</p>
+                    <p className="text-[10px] text-white/40 font-extralight tracking-wider mt-0.5">
+                      睡 {d.sleepOrigin} · {d.dir}{d.shiftH}h · 光照 {d.intensity}%
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => addWakeAlarm(d.day, d.wakeDest)}
+                    disabled={isAdded}
+                    className={`text-[11px] tracking-wider font-light transition-all ${isAdded ? 'text-white/20' : 'text-white/50 hover:text-white'}`}
+                  >
+                    {isAdded ? '已同步' : `起 ${d.wakeDest} 同步`}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
 
       {/* City picker modal */}
       <AnimatePresence>
         {pickerOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/90 flex flex-col"
-          >
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/90 flex flex-col">
             <div className="px-4 pt-12 pb-4 flex items-center space-x-3">
               <button onClick={() => { setPickerOpen(null); setSearch(''); }} className="text-white/60 hover:text-white text-sm tracking-wider font-light">取消</button>
-              <div className="flex-1 relative">
-                <input
-                  autoFocus
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="搜索城市…"
-                  className="w-full bg-white/[0.06] border border-white/10 rounded px-3 py-2 text-white text-sm font-light tracking-wider outline-none placeholder:text-white/20"
-                />
-              </div>
+              <input autoFocus value={search} onChange={(e) => setSearch(e.target.value)}
+                placeholder="搜索城市…"
+                className="flex-1 bg-white/[0.06] border border-white/10 rounded px-3 py-2 text-white text-sm font-light tracking-wider outline-none placeholder:text-white/20"
+              />
             </div>
             <div className="flex-1 overflow-y-auto px-4 pb-8">
               {filteredRegions.map((r, ri) => (
@@ -1000,16 +1136,10 @@ function JetLagView({ alarms, setAlarms, setActiveTab }: { alarms: Alarm[]; setA
                   <div className="grid grid-cols-2 gap-2">
                     {r.cities.map((c) => {
                       const idx = allCities.indexOf(c);
-                      const localRegIdx = regions.findIndex(rr => rr.cities.some(cc => allCities.indexOf(cc) === idx));
                       const isSelected = pickerOpen === 'origin' ? idx === originIdx : idx === destIdx;
                       return (
-                        <button
-                          key={c.name}
-                          onClick={() => selectAndClose(idx, pickerOpen!)}
-                          className={`text-left px-3 py-2.5 border transition-all ${
-                            isSelected ? 'border-white/30 bg-white/10' : 'border-white/[0.06] hover:border-white/20'
-                          }`}
-                        >
+                        <button key={c.name} onClick={() => selectAndClose(idx, pickerOpen!)}
+                          className={`text-left px-3 py-2.5 border transition-all ${isSelected ? 'border-white/30 bg-white/10' : 'border-white/[0.06] hover:border-white/20'}`}>
                           <span className="text-white text-xs font-light tracking-wider">{c.name}</span>
                           <span className="text-white/30 text-[10px] tracking-wider ml-2">{c.tz}</span>
                         </button>
@@ -1022,121 +1152,8 @@ function JetLagView({ alarms, setAlarms, setActiveTab }: { alarms: Alarm[]; setA
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Sleep schedule */}
-      <div className="grid grid-cols-2 gap-4 py-2">
-        <div className="space-y-2">
-          <p className="text-[9px] tracking-[0.3em] text-white/30 font-light uppercase">{origin.tz} 入睡</p>
-          <div className="flex items-baseline space-x-1">
-            <select value={bedHour} onChange={e => { setBedHour(+e.target.value); setPlanGenerated(false); }}
-              className="bg-transparent text-white text-xl font-light tracking-wider outline-none appearance-none cursor-pointer [color-scheme:dark]">
-              {Array.from({length:24}, (_,i) => <option key={i} value={i} className="bg-[#0a0a12]">{i.toString().padStart(2,'0')}</option>)}
-            </select>
-            <span className="text-white/30 text-lg">:</span>
-            <select value={bedMin} onChange={e => { setBedMin(+e.target.value); setPlanGenerated(false); }}
-              className="bg-transparent text-white text-xl font-light tracking-wider outline-none appearance-none cursor-pointer [color-scheme:dark]">
-              {[0,30].map(m => <option key={m} value={m} className="bg-[#0a0a12]">{m.toString().padStart(2,'0')}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <p className="text-[9px] tracking-[0.3em] text-white/30 font-light uppercase">{origin.tz} 起床</p>
-          <div className="flex items-baseline space-x-1">
-            <select value={wakeHour} onChange={e => { setWakeHour(+e.target.value); setPlanGenerated(false); }}
-              className="bg-transparent text-white text-xl font-light tracking-wider outline-none appearance-none cursor-pointer [color-scheme:dark]">
-              {Array.from({length:24}, (_,i) => <option key={i} value={i} className="bg-[#0a0a12]">{i.toString().padStart(2,'0')}</option>)}
-            </select>
-            <span className="text-white/30 text-lg">:</span>
-            <select value={wakeMin} onChange={e => { setWakeMin(+e.target.value); setPlanGenerated(false); }}
-              className="bg-transparent text-white text-xl font-light tracking-wider outline-none appearance-none cursor-pointer [color-scheme:dark]">
-              {[0,30].map(m => <option key={m} value={m} className="bg-[#0a0a12]">{m.toString().padStart(2,'0')}</option>)}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Time diff indicator */}
-      <div className="flex items-center justify-between px-2 py-3 border-y border-white/10">
-        <div className="text-[12px] tracking-wider text-white/60 font-light">
-          时差 <span className="text-white">{diff >= 0 ? '+' : ''}{diff}h</span>
-        </div>
-        <div className="text-[11px] tracking-wider text-white/30 font-extralight">
-          {origin.tz} → {dest.tz}
-        </div>
-      </div>
-
-      {/* Days slider */}
-      <div className="flex items-center justify-between px-2">
-        <p className="text-[11px] tracking-[0.3em] text-white/50 font-light uppercase">适应周期</p>
-        <div className="flex items-center space-x-2">
-          <input
-            type="range"
-            min="1" max="7"
-            value={days}
-            onChange={(e) => { setDays(parseInt(e.target.value)); setPlanGenerated(false); }}
-            className="w-24 h-[1px] bg-white/20 appearance-none outline-none cursor-pointer
-              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5
-              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:shadow-[0_0_8px_rgba(255,255,255,0.6)]"
-          />
-          <span className="text-sm text-white/80 font-light w-8 text-right">{days}<span className="text-[10px] text-white/30 ml-0.5">天</span></span>
-        </div>
-      </div>
-
-      {/* Generate button */}
-      <button 
-        onClick={handleGenerate}
-        disabled={generating}
-        className={`w-full py-3 text-center text-[12px] tracking-[0.4em] font-light uppercase transition-all border outline-none ${
-          planGenerated ? 'border-white/20 text-white/60' : generating ? 'border-white/10 text-white/40' : 'border-white/20 text-white hover:bg-white/5'
-        }`}
-      >
-        {generating ? '生成中…' : planGenerated ? '重新生成' : '生成适配计划'}
-      </button>
-
-      {/* Plan result */}
-      <AnimatePresence>
-        {planGenerated && (
-          <motion.div 
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-3 border border-white/10 bg-white/[0.03] p-4"
-          >
-            <h4 className="text-[11px] tracking-[0.3em] text-white/70 font-light uppercase mb-3">
-              光照 + 睡眠计划
-            </h4>
-            <div className="flex items-center justify-between py-2 px-3 bg-white/[0.04] border border-white/5">
-              <span className="text-[10px] text-white/40 tracking-wider font-extralight">目标 · {dest.tz}</span>
-              <span className="text-sm text-white/80 font-light tracking-widest">睡 {padTime(bedHour, bedMin)} → 起 {padTime(wakeHour, wakeMin)}</span>
-            </div>
-            <div className="space-y-3">
-              {planDays.map((d, i) => {
-                const isAdded = addedDays.has(d.day);
-                return (
-                <div key={i} className="flex items-start space-x-3">
-                  <div className={`mt-0.5 w-1 h-1 rounded-full shrink-0 transition-colors ${isAdded ? 'bg-white' : 'bg-white/50'}`} />
-                  <div className="flex-1">
-                    <div className="flex justify-between items-baseline">
-                      <p className="text-[11px] text-white/80 font-light tracking-wider">第 {d.day} 天</p>
-                      <button
-                        onClick={() => addWakeAlarm(d.day, d.wakeDest)}
-                        className={`text-[11px] font-light tracking-wider transition-all ${isAdded ? 'text-white/40 cursor-default' : 'text-white/60 hover:text-white cursor-pointer'}`}
-                        disabled={isAdded}
-                      >
-                        闹钟 {d.wakeDest} {dest.tz} {isAdded ? '✓' : '+'}
-                      </button>
-                    </div>
-                    <p className="text-[9px] text-white/30 tracking-widest font-extralight mt-1">
-                      睡 {d.sleepOrigin} {origin.tz} · {d.dir}{d.shiftH}h · 光照 {d.intensity}%
-                    </p>
-                  </div>
-                </div>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 }
+
 
