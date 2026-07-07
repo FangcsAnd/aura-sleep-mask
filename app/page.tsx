@@ -134,20 +134,20 @@ export default function App() {
       
       <div className="absolute inset-0 flex flex-col z-10">
         {/* Top Status Bar */}
-        <header className="relative w-full px-8 py-8 flex justify-between items-center pointer-events-none">
+        <header className="relative w-full px-6 py-3 flex justify-between items-center pointer-events-none">
           <div className="flex items-center space-x-3">
             <motion.div 
               className={`w-1 h-1 rounded-full ${connState === 'connected' ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]' : connState === 'connecting' ? 'bg-white/60' : 'bg-white/20'}`}
               animate={{ opacity: connState === 'connected' ? [0.3, 1, 0.3] : connState === 'connecting' ? [0.5, 1, 0.5] : 1 }}
               transition={{ duration: connState === 'connecting' ? 1 : 4, repeat: Infinity, ease: "easeInOut" }}
             />
-            <span className="text-[12px] tracking-[0.4em] uppercase font-light text-white/90 drop-shadow-md">
+            <span className="text-[10px] tracking-[0.3em] uppercase font-light text-white/80">
               {connState === 'connected' ? 'Dreamlight 已连接' : connState === 'connecting' ? 'Dreamlight 连接中…' : 'Dreamlight 待命'}
             </span>
           </div>
           {connState === 'connected' && (
             <div className="flex items-center space-x-3 text-white/90 drop-shadow-md">
-              <span className="text-[12px] tracking-[0.3em] font-light">{batteryLevel}%</span>
+              <span className="text-[10px] tracking-[0.2em] font-light">{batteryLevel}%</span>
               {batteryLevel > 70 ? (
                 <Battery className="w-3.5 h-3.5 opacity-80" strokeWidth={1} />
               ) : batteryLevel > 30 ? (
@@ -243,7 +243,7 @@ export default function App() {
               )}
             </div>
           ) : (
-            <div className="absolute inset-0 top-[72px] flex">
+            <div className="absolute inset-0 top-[44px] flex">
               {/* Left indicator dots */}
               <nav className="w-14 shrink-0 flex flex-col items-center justify-center space-y-8 border-r border-white/[0.04]">
                 {[
@@ -1025,35 +1025,35 @@ function JetLagView({ alarms, setAlarms, setActiveTab }: { alarms: Alarm[]; setA
             />
           </div>
 
-          {/* Sleep schedule */}
+          {/* Sleep schedule - iPhone style */}
           <div className="grid grid-cols-2 gap-4 py-2">
             <div className="space-y-1.5">
-              <p className="text-[11px] tracking-[0.2em] text-white/50 font-light">{origin.name} 入睡</p>
-              <div className="flex items-baseline space-x-1">
-                <select value={bedHour} onChange={e => { setBedHour(+e.target.value); setPlanGenerated(false); }}
-                  className="bg-transparent text-white text-xl font-light tracking-wider outline-none appearance-none cursor-pointer [color-scheme:dark]">
-                  {Array.from({length:24}, (_,i) => <option key={i} value={i} className="bg-[#0a0a12]">{i.toString().padStart(2,'0')}</option>)}
-                </select>
-                <span className="text-white/30 text-lg">:</span>
-                <select value={bedMin} onChange={e => { setBedMin(+e.target.value); setPlanGenerated(false); }}
-                  className="bg-transparent text-white text-xl font-light tracking-wider outline-none appearance-none cursor-pointer [color-scheme:dark]">
-                  {[0,30].map(m => <option key={m} value={m} className="bg-[#0a0a12]">{m.toString().padStart(2,'0')}</option>)}
-                </select>
-              </div>
+              <p className="text-[11px] tracking-[0.2em] text-white/60 font-light">{origin.name} 入睡</p>
+              <input
+                type="time"
+                value={`${bedHour.toString().padStart(2,'0')}:${bedMin.toString().padStart(2,'0')}`}
+                onChange={(e) => {
+                  const [h, m] = e.target.value.split(':');
+                  setBedHour(parseInt(h));
+                  setBedMin(parseInt(m));
+                  setPlanGenerated(false);
+                }}
+                className="bg-transparent text-white text-xl font-light tracking-wider outline-none [color-scheme:dark]"
+              />
             </div>
             <div className="space-y-1.5">
-              <p className="text-[11px] tracking-[0.2em] text-white/50 font-light">{origin.name} 起床</p>
-              <div className="flex items-baseline space-x-1">
-                <select value={wakeHour} onChange={e => { setWakeHour(+e.target.value); setPlanGenerated(false); }}
-                  className="bg-transparent text-white text-xl font-light tracking-wider outline-none appearance-none cursor-pointer [color-scheme:dark]">
-                  {Array.from({length:24}, (_,i) => <option key={i} value={i} className="bg-[#0a0a12]">{i.toString().padStart(2,'0')}</option>)}
-                </select>
-                <span className="text-white/30 text-lg">:</span>
-                <select value={wakeMin} onChange={e => { setWakeMin(+e.target.value); setPlanGenerated(false); }}
-                  className="bg-transparent text-white text-xl font-light tracking-wider outline-none appearance-none cursor-pointer [color-scheme:dark]">
-                  {[0,30].map(m => <option key={m} value={m} className="bg-[#0a0a12]">{m.toString().padStart(2,'0')}</option>)}
-                </select>
-              </div>
+              <p className="text-[11px] tracking-[0.2em] text-white/60 font-light">{origin.name} 起床</p>
+              <input
+                type="time"
+                value={`${wakeHour.toString().padStart(2,'0')}:${wakeMin.toString().padStart(2,'0')}`}
+                onChange={(e) => {
+                  const [h, m] = e.target.value.split(':');
+                  setWakeHour(parseInt(h));
+                  setWakeMin(parseInt(m));
+                  setPlanGenerated(false);
+                }}
+                className="bg-transparent text-white text-xl font-light tracking-wider outline-none [color-scheme:dark]"
+              />
             </div>
           </div>
 
@@ -1083,17 +1083,17 @@ function JetLagView({ alarms, setAlarms, setActiveTab }: { alarms: Alarm[]; setA
           <div className="flex items-center justify-between">
             <div>
               <p className="text-lg text-white font-light tracking-wider">{origin.name} → {dest.name}</p>
-              <p className="text-[11px] text-white/50 font-extralight tracking-wider mt-0.5">时差 {diff >= 0 ? '+' : ''}{diff}h · {days}天适应</p>
+              <p className="text-xs text-white/60 font-light tracking-wider mt-0.5">时差 {diff >= 0 ? '+' : ''}{diff}h · {days}天适应</p>
             </div>
             <button onClick={() => setPlanGenerated(false)}
-              className="text-[12px] text-white/40 hover:text-white/70 tracking-wider py-1">← 调整</button>
+              className="text-xs text-white/60 hover:text-white tracking-wider py-1.5 px-3 border border-white/15 hover:border-white/30 transition-colors">← 调整</button>
           </div>
 
           {/* Target schedule */}
           <div className="border border-white/[0.08] bg-white/[0.02] p-4 space-y-3">
             <div className="flex justify-between items-center">
-              <span className="text-[12px] text-white/50 font-light tracking-wider">目标作息 · {dest.name}</span>
-              <span className="text-base text-white/70 font-light tracking-wider">睡 {padTime(bedHour, bedMin)} → 起 {padTime(wakeHour, wakeMin)}</span>
+              <span className="text-[12px] text-white/60 font-light tracking-wider">目标作息 · {dest.name}</span>
+              <span className="text-base text-white/80 font-light tracking-wider">睡 {padTime(bedHour, bedMin)} → 起 {padTime(wakeHour, wakeMin)}</span>
             </div>
             
             {planDays.map((d, i) => {
@@ -1102,14 +1102,16 @@ function JetLagView({ alarms, setAlarms, setActiveTab }: { alarms: Alarm[]; setA
                 <div key={i} className="flex items-center justify-between py-2 border-t border-white/[0.04]">
                   <div>
                     <p className="text-[13px] text-white/80 font-light tracking-wider">第 {d.day} 天</p>
-                    <p className="text-[11px] text-white/50 font-extralight tracking-wider mt-0.5">
+                    <p className="text-[11px] text-white/60 font-light tracking-wider mt-0.5">
                       睡 {d.sleepOrigin} · {d.dir}{d.shiftH}h · 光照 {d.intensity}%
                     </p>
                   </div>
                   <button
                     onClick={() => addWakeAlarm(d.day, d.wakeDest)}
                     disabled={isAdded}
-                    className={`text-[11px] tracking-wider font-light transition-all ${isAdded ? 'text-white/20' : 'text-white/50 hover:text-white'}`}
+                    className={`shrink-0 text-xs tracking-wider font-light py-1.5 px-3 border transition-all ${
+                      isAdded ? 'text-white/30 border-white/10' : 'text-white/60 border-white/20 hover:bg-white/5 hover:text-white'
+                    }`}
                   >
                     {isAdded ? '已同步' : `起 ${d.wakeDest} 同步`}
                   </button>
