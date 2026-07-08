@@ -239,7 +239,7 @@ export default function App() {
                         );
                       })}
                     </div>
-                    <div className="w-full max-w-sm grid grid-cols-2 gap-x-6 gap-y-5 pl-[18px] opacity-80">
+                    <div className="w-full max-w-sm grid grid-cols-2 gap-x-6 gap-y-7 pl-[18px] opacity-80">
                       {[
                         { id: 'alarms' as Tab, label: '自然醒来', sub: '灯光唤醒' },
                         { id: 'jetlag' as Tab, label: '时差调整', sub: '调整节律' },
