@@ -239,7 +239,7 @@ export default function App() {
                         );
                       })}
                     </div>
-                    <div className="w-full max-w-sm grid grid-cols-2 gap-x-8 gap-y-5 pl-[18px] opacity-80">
+                    <div className="w-full max-w-sm grid grid-cols-2 gap-x-6 gap-y-5 pl-[18px] opacity-80">
                       {[
                         { id: 'alarms' as Tab, label: '自然醒来', sub: '灯光唤醒' },
                         { id: 'jetlag' as Tab, label: '时差调整', sub: '调整节律' },
@@ -247,8 +247,8 @@ export default function App() {
                         { id: 'settings' as Tab, label: '睡眠设置', sub: '设备管理' },
                       ].map((item) => (
                         <button key={item.id} onClick={() => setPanelTab(item.id as Tab)} className="text-left group py-2">
-                          <p className="text-base text-white/50 font-light tracking-wider">{item.label}</p>
-                          <p className="text-[13px] text-white/30 font-extralight tracking-wider mt-1">{item.sub}</p>
+                          <p className="text-base text-white/50 font-light tracking-wider whitespace-nowrap">{item.label}</p>
+                          <p className="text-[13px] text-white/30 font-extralight tracking-wider mt-1 whitespace-nowrap">{item.sub}</p>
                         </button>
                       ))}
                     </div>
