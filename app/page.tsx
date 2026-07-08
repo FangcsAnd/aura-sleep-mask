@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Battery, BatteryMedium, BatteryLow, Moon } from 'lucide-react';
 
 type Mode = 'off' | 'mindfulness' | 'resonance' | '478';
-type Tab = 'therapy' | 'alarms' | 'jetlag';
+type Tab = 'therapy' | 'alarms' | 'jetlag' | 'music' | 'settings';
 
 type Alarm = {
   id: number;
@@ -23,38 +23,7 @@ export default function App() {
   const [timerDuration, setTimerDuration] = useState(30);
     const [activeTab, setActiveTab] = useState<Tab>('therapy');
     const [panelTab, setPanelTab] = useState<Tab | null>(null);
-    const scrollRef = useRef<HTMLDivElement>(null);
     const [scalePulse, setScalePulse] = useState(1);
-
-    // Track which section is visible (after connected)
-    useEffect(() => {
-      if (connState !== 'connected') return;
-      const el = scrollRef.current;
-      if (!el) return;
-      const sections = el.querySelectorAll('.snap-section');
-      const tabs: Tab[] = ['therapy', 'alarms', 'jetlag'];
-      const observer = new IntersectionObserver(
-        (entries) => {
-          const visible = entries.filter(e => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
-          if (visible.length > 0) {
-            const idx = Array.from(sections).indexOf(visible[0].target as Element);
-            if (idx >= 0 && idx < tabs.length) setActiveTab(tabs[idx]);
-          }
-        },
-        { threshold: 0.5 }
-      );
-      sections.forEach(s => observer.observe(s));
-      return () => observer.disconnect();
-    }, [connState]);
-
-    const scrollToTab = (tab: Tab) => {
-      const el = scrollRef.current;
-      if (!el) return;
-      const tabs: Tab[] = ['therapy', 'alarms', 'jetlag'];
-      const idx = tabs.indexOf(tab);
-      setActiveTab(tab);
-      el.scrollTo({ top: idx * el.clientHeight, behavior: 'smooth' });
-    };
   const connTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [alarms, setAlarms] = useState<Alarm[]>([
     { id: 1, time: '07:00', label: '晨间唤醒', active: true, repeat: [1, 1, 1, 1, 1, 0, 0] },
@@ -125,16 +94,16 @@ export default function App() {
       transition={{ type: "spring", stiffness: 400, damping: 20 }}
       className="relative w-full h-[100dvh] flex flex-col font-sans overflow-hidden bg-[#030305] text-white selection:bg-white/20"
     >
-      <ChladniBackground mode={activeMode} isConnected={connState === 'connected'} />
+      <ChladniBackground mode={activeMode} isConnected={connState === 'connected'} paused={!!panelTab} />
       
       {/* Background blur when not in therapy */}
-      {activeTab !== 'therapy' && (
+      {panelTab && (
         <div className="absolute inset-0 z-[5] backdrop-blur-sm bg-black/10 pointer-events-none transition-opacity duration-500" />
       )}
       
       <div className="absolute inset-0 flex flex-col z-10">
         {/* Top Status Bar */}
-        <header className="relative w-full px-6 py-3 flex justify-between items-center pointer-events-none">
+        <header className="relative w-full px-6 py-5 flex justify-between items-center pointer-events-none">
           <div className="flex items-center space-x-3">
             <motion.div 
               className={`w-1 h-1 rounded-full ${connState === 'connected' ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]' : connState === 'connecting' ? 'bg-white/60' : 'bg-white/20'}`}
@@ -243,48 +212,82 @@ export default function App() {
               )}
             </div>
           ) : (
-            <div className="absolute inset-0 top-[44px] flex">
-              {/* Left indicator dots */}
-              <nav className="w-14 shrink-0 flex flex-col items-center justify-center space-y-8 border-r border-white/[0.04]">
-                {[
-                  { id: 'therapy' as Tab, label: '光疗' },
-                  { id: 'alarms' as Tab, label: '唤醒' },
-                  { id: 'jetlag' as Tab, label: '时差' },
-                ].map((tab) => {
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => scrollToTab(tab.id)}
-                      className="flex flex-col items-center space-y-1"
+            <div className="absolute inset-0 top-[2px] flex">
+              <AnimatePresence>
+                {!panelTab && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="flex-1 flex flex-col items-center justify-center px-8"
+                  >
+                    <div className="w-full max-w-sm space-y-10 mb-14">
+                      {[
+                        { id: 'mindfulness' as Mode, title: '平静入眠', sub: '正念呼吸' },
+                        { id: 'resonance' as Mode, title: '压力释放', sub: '共振式呼吸' },
+                        { id: '478' as Mode, title: '睡眠修复', sub: '4-7-8 呼吸' },
+                      ].map((mode) => {
+                        const isActive = activeMode === mode.id;
+                        return (
+                        <button key={mode.id} onClick={() => { triggerHaptic('medium'); setActiveMode(isActive ? 'off' : mode.id); }}
+                          className="block text-left w-full outline-none group"
+                        >
+                          <div className="flex items-start">
+                            <div className={`w-[2px] mr-4 mt-1 transition-all duration-500 rounded-full ${isActive ? 'h-10 bg-white/80' : 'h-0 bg-white/0'}`} />
+                            <div>
+                              <h2 className={`text-2xl font-light tracking-[0.15em] transition-all duration-500 ${isActive ? 'text-white' : 'text-white/80'}`}>{mode.title}</h2>
+                              <p className={`text-[15px] font-light tracking-[0.2em] mt-1.5 transition-colors ${isActive ? 'text-white/60' : 'text-white/35'}`}>{mode.sub}</p>
+                            </div>
+                          </div>
+                        </button>
+                        );
+                      })}
+                    </div>
+                    <div className="w-full max-w-sm grid grid-cols-2 gap-x-8 gap-y-5 opacity-70">
+                      {[
+                        { id: 'alarms' as Tab, label: '自然醒来', sub: '灯光唤醒' },
+                        { id: 'jetlag' as Tab, label: '时差调整', sub: '调整节律' },
+                        { id: 'music' as Tab, label: '沉浸声音', sub: '声音疗愈' },
+                        { id: 'settings' as Tab, label: '睡眠设置', sub: '设备管理' },
+                      ].map((item) => (
+                        <button key={item.id} onClick={() => setPanelTab(item.id as Tab)} className="text-left group py-2">
+                          <p className="text-[15px] text-white/60 font-light tracking-wider">{item.label}</p>
+                          <p className="text-xs text-white/30 font-extralight tracking-wider mt-1">{item.sub}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              {!panelTab && activeMode !== 'off' && (
+                <div className="absolute bottom-20 left-4 right-4 z-20">
+                  <div className="flex items-center space-x-3 bg-white/[0.04] backdrop-blur-md border border-white/[0.06] rounded-2xl px-4 py-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-white/50 font-light tracking-wider truncate">
+                        {activeMode === 'mindfulness' ? '正念呼吸 · 雨声禅意' : activeMode === 'resonance' ? '共振呼吸 · 深海频率' : '4-7-8 呼吸 · 星空白噪'}
+                      </p>
+                    </div>
+                    <span className="text-[10px] text-white/20 font-extralight">{timerDuration}min</span>
+                  </div>
+                </div>
+              )}
+              <div className="flex-1 relative overflow-hidden">
+                <AnimatePresence>
+                  {panelTab && (
+                    <motion.div key={panelTab} initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+                      transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                      className="absolute inset-0 z-20 overflow-y-auto no-scrollbar"
                     >
-                      <div className={`w-1.5 h-1.5 rounded-full transition-all ${isActive ? 'bg-white shadow-[0_0_6px_rgba(255,255,255,0.5)]' : 'bg-white/30'}`} />
-                      <span className={`text-[10px] tracking-[0.3em] uppercase font-light transition-colors ${isActive ? 'text-white' : 'text-white/50 hover:text-white/80'}`}>
-                        {tab.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </nav>
-
-              {/* Scrollable vertical pages */}
-              <div
-                ref={scrollRef}
-                className="flex-1 overflow-y-scroll snap-y snap-mandatory no-scrollbar"
-              >
-                <div className="snap-section snap-start h-full flex flex-col justify-center px-4">
-                  <TherapyView activeMode={activeMode} setActiveMode={setActiveMode} timerDuration={timerDuration} setTimerDuration={setTimerDuration} triggerHaptic={triggerHaptic} />
-                </div>
-                <div className="snap-section snap-start h-full overflow-y-auto no-scrollbar">
-                  <div className="min-h-full px-5 py-8">
-                    <AlarmsView alarms={alarms} setAlarms={setAlarms} />
-                  </div>
-                </div>
-                <div className="snap-section snap-start h-full overflow-y-auto no-scrollbar">
-                  <div className="min-h-full px-5 py-8">
-                    <JetLagView alarms={alarms} setAlarms={setAlarms} setActiveTab={setActiveTab} />
-                  </div>
-                </div>
+                      <div className="px-5 pt-3 pb-8">
+                        <button onClick={() => setPanelTab(null)} className="w-7 h-7 rounded-full bg-white/[0.08] hover:bg-white/[0.15] flex items-center justify-center transition-colors mb-4">
+                          <span className="text-white/50 text-xs">✕</span>
+                        </button>
+                        {panelTab === 'alarms' && <><h3 className="text-lg text-white/70 font-light tracking-wider mb-4">唤醒闹钟</h3><AlarmsView alarms={alarms} setAlarms={setAlarms} /></>}
+                        {panelTab === 'jetlag' && <><h3 className="text-lg text-white/70 font-light tracking-wider mb-4">时差调节</h3><JetLagView alarms={alarms} setAlarms={setAlarms} setActiveTab={setActiveTab} /></>}
+                        {panelTab === 'music' && <MusicView />}
+                        {panelTab === 'settings' && <SettingsView />}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
           )}
@@ -317,10 +320,12 @@ const breathProfiles: Record<Mode, BreathProfile> = {
   ]
 };
 
-const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnected }: { mode: Mode, isConnected: boolean }) {
+const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnected, paused }: { mode: Mode, isConnected: boolean, paused?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const modeRef = useRef(mode);
   const isConnectedRef = useRef(isConnected);
+  const pausedRef = useRef(paused);
+  useEffect(() => { pausedRef.current = paused; }, [paused]);
 
   const nightColors = [
     { r: 15, g: 20, b: 80 },   // deep sapphire
@@ -429,6 +434,10 @@ const ChladniBackground = React.memo(function ChladniBackground({ mode, isConnec
     window.addEventListener('resize', handleResize);
 
     const render = (time: number) => {
+      if (pausedRef.current) {
+        animationFrameId = requestAnimationFrame(render);
+        return;
+      }
       const dt = Math.min(time - lastTime, 50);
       lastTime = time;
       const fpsRatio = dt / (1000 / 60);
@@ -610,20 +619,6 @@ function TherapyView({ activeMode, setActiveMode, timerDuration, setTimerDuratio
             </button>
           );
         })}
-      </div>
-
-      {/* Timer bar */}
-      <div className="absolute bottom-6 left-4 right-4 z-20">
-        <div className="flex items-center space-x-3">
-          <span className="text-xs text-white/70 font-light tracking-wider shrink-0">定时</span>
-          <input type="range" min="5" max="60" step="5" value={timerDuration}
-            onChange={(e) => setTimerDuration(parseInt(e.target.value))}
-            className="flex-1 h-[1px] bg-white/15 appearance-none outline-none cursor-pointer
-              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 
-              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white/70"
-          />
-          <span className="text-xs text-white/70 font-light tracking-wider shrink-0">{timerDuration}m</span>
-        </div>
       </div>
     </motion.div>
   );
@@ -1162,3 +1157,148 @@ function JetLagView({ alarms, setAlarms, setActiveTab }: { alarms: Alarm[]; setA
 }
 
 
+
+function MusicView() {
+  const [category, setCategory] = useState<string | null>(null);
+  const [playing, setPlaying] = useState<number | null>(null);
+  const tracks = [
+    { id: 63, typename: "ASMR", title: "ASMR-绘画", bgcolor: "#b18e8c", duration: 402, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/05/06/%E7%BB%98%E7%94%BB.jpg" },
+    { id: 62, typename: "ASMR", title: "ASMR-薯片", bgcolor: "#0b2024", duration: 166, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/04/30/shutiao_he_shupian-013.jpg" },
+    { id: 60, typename: "ASMR", title: "ASMR-海底", bgcolor: "#043a53", duration: 538, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/04/30/fernando-jorge--Jbg7G6RDSc-unsplash.jpg" },
+    { id: 58, typename: "噪音", title: "白噪音-助眠", bgcolor: "#969292", duration: 180, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/04/30/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20200430154645.png" },
+    { id: 57, typename: "噪音", title: "褐色噪音-放松", bgcolor: "#241b18", duration: 248, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/04/30/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20200430154603.png" },
+    { id: 56, typename: "噪音", title: "粉红噪音-改善睡眠", bgcolor: "#ce5882", duration: 339, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/04/30/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20200430154648.png" },
+    { id: 52, typename: "助眠引导", title: "正念呼吸-入门", bgcolor: "#11636b", duration: 1798, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/04/23/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20190329101702.jpg" },
+    { id: 53, typename: "助眠引导", title: "4-7-8呼吸-进阶", bgcolor: "#5678be", duration: 1798, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/04/29/IMG_0780.JPG" },
+    { id: 51, typename: "自然音乐", title: "山间溪水", bgcolor: "#195364", duration: 305, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/04/15/IMG_0527.JPG" },
+    { id: 28, typename: "自然音乐", title: "森林雨声", bgcolor: "#414443", duration: 181, corverimg: "http://cdn.dreamlandlife.com/audio/img/2019/04/03/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20190401152519.jpg" },
+    { id: 27, typename: "自然音乐", title: "沙滩浪花", bgcolor: "#2d6a80", duration: 188, corverimg: "http://cdn.dreamlandlife.com/audio/img/2019/04/03/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20190325101517.jpg" },
+    { id: 25, typename: "自然音乐", title: "草原日落", bgcolor: "#7c5669", duration: 239, corverimg: "http://cdn.dreamlandlife.com/audio/img/2019/04/03/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20190401152540.jpg" },
+  ];
+  const categories = [...new Set(tracks.map(t => t.typename))];
+  const filtered = category ? tracks.filter(t => t.typename === category) : tracks;
+  const fmtDuration = (s: number) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
+
+  return (
+    <div className="flex flex-col space-y-5">
+      <h3 className="text-lg text-white/80 font-light tracking-wider">助眠音乐</h3>
+      <div className="flex space-x-2 overflow-x-auto no-scrollbar">
+        <button onClick={() => setCategory(null)} className={`shrink-0 px-3 py-1.5 text-[11px] tracking-wider font-light rounded-full border transition-all ${!category?'border-white/30 bg-white/10 text-white':'border-white/[0.06] text-white/40 hover:text-white/70'}`}>全部</button>
+        {categories.map(cat => (
+          <button key={cat} onClick={() => setCategory(cat)} className={`shrink-0 px-3 py-1.5 text-[11px] tracking-wider font-light rounded-full border transition-all ${category===cat?'border-white/30 bg-white/10 text-white':'border-white/[0.06] text-white/40 hover:text-white/70'}`}>{cat}</button>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {filtered.map((t) => (
+          <div key={t.id} className="h-40" style={{perspective:'800px'}}>
+            <button
+              onClick={() => setPlaying(playing===t.id?null:t.id)}
+              className="relative w-full h-full rounded-2xl text-left transition-transform duration-700 active:scale-[0.97]"
+              style={{
+                transformStyle: 'preserve-3d',
+                transform: playing === t.id ? 'rotateY(180deg)' : 'rotateY(0deg)',
+              }}
+            >
+              {/* Front face */}
+              <div className="absolute inset-0 rounded-2xl overflow-hidden" style={{backfaceVisibility:'hidden', background:`linear-gradient(180deg,${t.bgcolor}40 0%,${t.bgcolor}10 100%)`}}>
+                <div className="absolute inset-0 opacity-25">
+                  {t.corverimg && <img src={t.corverimg} alt="" className="w-full h-full object-cover" />}
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                <div className="absolute bottom-0 left-0 right-0 p-3">
+                  <p className="text-xs text-white/70 font-light tracking-wider truncate">{t.title}</p>
+                  <p className="text-[9px] text-white/30 font-extralight tracking-wider mt-0.5">{t.typename}</p>
+                </div>
+              </div>
+              {/* Back face - Chladni particles */}
+              <div className="absolute inset-0 rounded-2xl overflow-hidden" style={{backfaceVisibility:'hidden', transform:'rotateY(180deg)', backgroundColor:t.bgcolor}}>
+                <MusicCardCanvas bgcolor={t.bgcolor} active={playing === t.id} seed={t.id} title={t.title} />
+              </div>
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MusicCardCanvas({ bgcolor, active, seed, title }: { bgcolor: string; active: boolean; seed: number; title: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (!active) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+    let animId: number;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * 2; canvas.height = rect.height * 2;
+    ctx.scale(2, 2);
+
+    const hex = (s: string) => ({ r: parseInt(s.slice(1,3),16), g: parseInt(s.slice(3,5),16), b: parseInt(s.slice(5,7),16) });
+    const c = hex(bgcolor);
+    const num = 400;
+    const particles = new Float32Array(num * 2);
+    for (let i = 0; i < num * 2; i++) particles[i] = Math.random();
+    // Seed-based variation
+    const seedN = 3 + (seed % 7);
+    const seedM = 2 + ((seed * 3) % 6);
+    let n = seedN, m = seedM, frame = 0;
+
+    const render = () => {
+      frame++;
+      n = seedN + Math.sin(frame * 0.03) * 2;
+      m = seedM + Math.cos(frame * 0.025) * 2;
+      ctx.fillStyle = `rgba(${c.r},${c.g},${c.b},0.12)`;
+      ctx.fillRect(0, 0, rect.width, rect.height);
+      ctx.fillStyle = `rgba(255,255,255,0.45)`;
+      ctx.beginPath();
+      for (let i = 0; i < num; i++) {
+        let x = particles[i*2], y = particles[i*2+1];
+        x += (Math.random()-0.5)*0.005; y += (Math.random()-0.5)*0.005;
+        if (x<0)x+=1; if(x>1)x-=1; if(y<0)y+=1; if(y>1)y-=1;
+        const f = Math.sin(n*Math.PI*x)*Math.sin(m*Math.PI*y) + Math.sin(m*Math.PI*x)*Math.sin(n*Math.PI*y);
+        const dfdx = n*Math.PI*Math.cos(n*Math.PI*x)*Math.sin(m*Math.PI*y) + m*Math.PI*Math.cos(m*Math.PI*x)*Math.sin(n*Math.PI*y);
+        const dfdy = m*Math.PI*Math.sin(n*Math.PI*x)*Math.cos(m*Math.PI*y) + n*Math.PI*Math.sin(m*Math.PI*x)*Math.cos(n*Math.PI*y);
+        x -= f*dfdx*0.001; y -= f*dfdy*0.001;
+        particles[i*2]=x; particles[i*2+1]=y;
+        ctx.rect(x*rect.width, y*rect.height, 1.5, 1.5);
+      }
+      ctx.fill();
+
+      // Draw title in center
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.font = `${rect.width * 0.09}px "Inter", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(title, rect.width / 2, rect.height / 2);
+
+      animId = requestAnimationFrame(render);
+    };
+    animId = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(animId);
+  }, [active, bgcolor, seed, title]);
+
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />;
+}
+
+function SettingsView() {
+  return (
+    <div className="flex flex-col space-y-6">
+      <h3 className="text-lg text-white/80 font-light tracking-wider">设置</h3>
+      <div className="space-y-3">
+        {[
+          { label: '设备信息', desc: 'Dreamlight A1 · 固件 v2.1' },
+          { label: '蓝牙连接', desc: '已连接 · 信号强' },
+          { label: '亮度调节', desc: '自适应' },
+          { label: '关于应用', desc: '版本 1.0.0' },
+        ].map((s) => (
+          <div key={s.label} className="flex justify-between items-center py-3 border-b border-white/[0.06]">
+            <span className="text-sm text-white/60 font-light tracking-wider">{s.label}</span>
+            <span className="text-xs text-white/30 font-extralight tracking-wider">{s.desc}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
