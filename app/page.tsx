@@ -24,6 +24,22 @@ export default function App() {
     const [activeTab, setActiveTab] = useState<Tab>('therapy');
     const [panelTab, setPanelTab] = useState<Tab | null>(null);
     const [scalePulse, setScalePulse] = useState(1);
+    const [playingTrackId, setPlayingTrackId] = useState<number | null>(null);
+
+    const musicTracks = [
+    { id: 63, typename: "ASMR", title: "ASMR-绘画", bgcolor: "#b18e8c", duration: 402, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/05/06/%E7%BB%98%E7%94%BB.jpg" },
+    { id: 62, typename: "ASMR", title: "ASMR-薯片", bgcolor: "#0b2024", duration: 166, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/04/30/shutiao_he_shupian-013.jpg" },
+    { id: 60, typename: "ASMR", title: "ASMR-海底", bgcolor: "#043a53", duration: 538, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/04/30/fernando-jorge--Jbg7G6RDSc-unsplash.jpg" },
+    { id: 58, typename: "噪音", title: "白噪音-助眠", bgcolor: "#969292", duration: 180, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/04/30/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20200430154645.png" },
+    { id: 57, typename: "噪音", title: "褐色噪音-放松", bgcolor: "#241b18", duration: 248, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/04/30/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20200430154603.png" },
+    { id: 56, typename: "噪音", title: "粉红噪音-改善睡眠", bgcolor: "#ce5882", duration: 339, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/04/30/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20200430154648.png" },
+    { id: 52, typename: "助眠引导", title: "正念呼吸-入门", bgcolor: "#11636b", duration: 1798, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/04/23/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20190329101702.jpg" },
+    { id: 53, typename: "助眠引导", title: "4-7-8呼吸-进阶", bgcolor: "#5678be", duration: 1798, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/04/29/IMG_0780.JPG" },
+    { id: 51, typename: "自然音乐", title: "山间溪水", bgcolor: "#195364", duration: 305, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/04/15/IMG_0527.JPG" },
+    { id: 28, typename: "自然音乐", title: "森林雨声", bgcolor: "#414443", duration: 181, corverimg: "http://cdn.dreamlandlife.com/audio/img/2019/04/03/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20190401152519.jpg" },
+    { id: 27, typename: "自然音乐", title: "沙滩浪花", bgcolor: "#2d6a80", duration: 188, corverimg: "http://cdn.dreamlandlife.com/audio/img/2019/04/03/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20190325101517.jpg" },
+    { id: 25, typename: "自然音乐", title: "草原日落", bgcolor: "#7c5669", duration: 239, corverimg: "http://cdn.dreamlandlife.com/audio/img/2019/04/03/%E5%BE%AE%E4%BF%A1%E5%9B%BE%E7%89%87_20190401152540.jpg" },
+  ];
   const connTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const [alarms, setAlarms] = useState<Alarm[]>([
     { id: 1, time: '07:00', label: '晨间唤醒', active: true, repeat: [1, 1, 1, 1, 1, 0, 0] },
@@ -264,16 +280,22 @@ export default function App() {
                       </button>
                       {panelTab === 'alarms' && <><h3 className="text-lg text-white/70 font-light tracking-wider mb-4">唤醒闹钟</h3><AlarmsView alarms={alarms} setAlarms={setAlarms} /></>}
                       {panelTab === 'jetlag' && <><h3 className="text-lg text-white/70 font-light tracking-wider mb-4">时差调节</h3><JetLagView alarms={alarms} setAlarms={setAlarms} setActiveTab={setActiveTab} /></>}
-                      {panelTab === 'music' && <MusicView />}
+                      {panelTab === 'music' && <MusicView onPlayTrack={(id) => setPlayingTrackId(id)} />}
                       {panelTab === 'settings' && <SettingsView />}
                     </div>
                   </div>
                 )}
               </div>
             </div>
-          )}
+           )}
         </main>
       </div>
+
+      {/* Full-screen music player - rendered outside panel */}
+      {playingTrackId !== null && (() => {
+        const track = musicTracks.find(t => t.id === playingTrackId);
+        return track ? <NatureMusicPlayer track={track} onClose={() => setPlayingTrackId(null)} /> : null;
+      })()}
     </motion.div>
   );
 }
@@ -1150,9 +1172,8 @@ function JetLagView({ alarms, setAlarms, setActiveTab }: { alarms: Alarm[]; setA
 
 
 
-function MusicView() {
+function MusicView({ onPlayTrack }: { onPlayTrack?: (id: number) => void }) {
   const [category, setCategory] = useState<string | null>(null);
-  const [playing, setPlaying] = useState<number | null>(null);
   const tracks = [
     { id: 63, typename: "ASMR", title: "ASMR-绘画", bgcolor: "#b18e8c", duration: 402, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/05/06/%E7%BB%98%E7%94%BB.jpg" },
     { id: 62, typename: "ASMR", title: "ASMR-薯片", bgcolor: "#0b2024", duration: 166, corverimg: "http://cdn.dreamlandlife.com/audio/img/2020/04/30/shutiao_he_shupian-013.jpg" },
@@ -1169,39 +1190,34 @@ function MusicView() {
   ];
   const categories = [...new Set(tracks.map(t => t.typename))];
   const filtered = category ? tracks.filter(t => t.typename === category) : tracks;
-  const fmtDuration = (s: number) => `${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')}`;
 
   return (
-    <div className="flex flex-col space-y-5">
-      <h3 className="text-lg text-white/80 font-light tracking-wider">助眠音乐</h3>
-      <div className="flex space-x-2 overflow-x-auto no-scrollbar">
-        <button onClick={() => setCategory(null)} className={`shrink-0 px-3 py-1.5 text-[11px] tracking-wider font-light rounded-full border ${!category?'border-white/30 bg-white/10 text-white':'border-white/[0.06] text-white/40'}`}>全部</button>
-        {categories.map(cat => (
-          <button key={cat} onClick={() => setCategory(cat)} className={`shrink-0 px-3 py-1.5 text-[11px] tracking-wider font-light rounded-full border ${category===cat?'border-white/30 bg-white/10 text-white':'border-white/[0.06] text-white/40'}`}>{cat}</button>
-        ))}
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        {filtered.map((t) => (
-          <div key={t.id} className="h-40" style={{perspective:'800px'}}>
-            <button onClick={() => setPlaying(playing===t.id?null:t.id)}
-              className="relative w-full h-full rounded-2xl text-left transition-transform duration-700 active:scale-[0.97]"
-              style={{transformStyle:'preserve-3d', transform: playing===t.id?'rotateY(180deg)':'rotateY(0deg)'}}
-            >
-              <div className="absolute inset-0 rounded-2xl overflow-hidden" style={{backfaceVisibility:'hidden', background:`linear-gradient(180deg,${t.bgcolor}40 0%,${t.bgcolor}10 100%)`}}>
+    <div className="flex flex-col h-full">
+      {/* Grid view */}
+      <>
+          <h3 className="text-lg text-white/80 font-light tracking-wider">助眠音乐</h3>
+          <div className="flex space-x-2 overflow-x-auto no-scrollbar mt-3">
+            <button onClick={() => setCategory(null)} className={`shrink-0 px-3 py-1.5 text-[11px] tracking-wider font-light rounded-full border ${!category?'border-white/30 bg-white/10 text-white':'border-white/[0.06] text-white/40'}`}>全部</button>
+            {categories.map(cat => (
+              <button key={cat} onClick={() => setCategory(cat)} className={`shrink-0 px-3 py-1.5 text-[11px] tracking-wider font-light rounded-full border ${category===cat?'border-white/30 bg-white/10 text-white':'border-white/[0.06] text-white/40'}`}>{cat}</button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            {filtered.map((t) => (
+              <button key={t.id} onClick={() => onPlayTrack?.(t.id)}
+                className="relative rounded-2xl text-left h-40 overflow-hidden active:scale-[0.97] transition-transform"
+                style={{background:`linear-gradient(180deg,${t.bgcolor}40 0%,${t.bgcolor}10 100%)`}}
+              >
                 <div className="absolute inset-0 opacity-25">{t.corverimg&&<img src={t.corverimg} alt="" className="w-full h-full object-cover"/>}</div>
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"/>
                 <div className="absolute bottom-0 left-0 right-0 p-3">
                   <p className="text-xs text-white/70 font-light tracking-wider truncate">{t.title}</p>
                   <p className="text-[9px] text-white/30 font-extralight mt-0.5">{t.typename}</p>
                 </div>
-              </div>
-              <div className="absolute inset-0 rounded-2xl overflow-hidden" style={{backfaceVisibility:'hidden', transform:'rotateY(180deg)', backgroundColor:t.bgcolor}}>
-                <MusicCardCanvas bgcolor={t.bgcolor} active={playing===t.id} seed={t.id} title={t.title}/>
-              </div>
-            </button>
+              </button>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
     </div>
   );
 }
@@ -1252,6 +1268,316 @@ function SettingsView() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function NowPlayingParticles({ bgcolor }: { bgcolor: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+    let animId: number;
+    const w = window.innerWidth, h = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    ctx.scale(dpr, dpr);
+
+    // Debug: fill visible rect first
+    ctx.fillStyle = bgcolor;
+    ctx.fillRect(0, 0, w, h);
+
+    const hex = (s: string) => ({ r: parseInt(s.slice(1,3),16), g: parseInt(s.slice(3,5),16), b: parseInt(s.slice(5,7),16) });
+    const c = hex(bgcolor);
+    const c2 = { r: Math.min(255,c.r+50), g: Math.min(255,c.g+30), b: Math.min(255,c.b+20) };
+
+    const num = 15000;
+    const particles = new Float32Array(num * 2);
+    for (let i = 0; i < num * 2; i++) particles[i] = Math.random();
+    let n = 5, m = 4, frame = 0;
+
+    // Frequency patterns that change over time
+    const patterns = [[5,4],[7,3],[6,6],[8,5],[4,7],[9,4],[5,8],[7,7]];
+
+    const render = () => {
+      frame++;
+      const pidx = Math.floor(frame / 120) % patterns.length;
+      const [tn, tm] = patterns[pidx];
+      n += (tn - n) * 0.02;
+      m += (tm - m) * 0.02;
+
+      // Flowing gradient
+      const grad = ctx.createLinearGradient(
+        w*(0.3+Math.sin(frame*0.003)*0.3), h*(0.3+Math.cos(frame*0.004)*0.3),
+        w*(0.7+Math.cos(frame*0.0035)*0.3), h*(0.7+Math.sin(frame*0.0045)*0.3)
+      );
+      grad.addColorStop(0, `rgba(${c.r},${c.g},${c.b},0.5)`);
+      grad.addColorStop(1, `rgba(${c2.r},${c2.g},${c2.b},0.5)`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.fillStyle = `rgba(${c.r},${c.g},${c.b},0.08)`;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.beginPath();
+      for (let i = 0; i < num; i++) {
+        let x = particles[i*2], y = particles[i*2+1];
+        x += (Math.random()-0.5)*0.003; y += (Math.random()-0.5)*0.003;
+        if (x<0)x+=1; if(x>1)x-=1; if(y<0)y+=1; if(y>1)y-=1;
+        const f = Math.sin(n*Math.PI*x)*Math.sin(m*Math.PI*y) + Math.sin(m*Math.PI*x)*Math.sin(n*Math.PI*y);
+        const dfdx = n*Math.PI*Math.cos(n*Math.PI*x)*Math.sin(m*Math.PI*y) + m*Math.PI*Math.cos(m*Math.PI*x)*Math.sin(n*Math.PI*y);
+        const dfdy = m*Math.PI*Math.sin(n*Math.PI*x)*Math.cos(m*Math.PI*y) + n*Math.PI*Math.sin(m*Math.PI*x)*Math.cos(n*Math.PI*y);
+        x -= f*dfdx*0.001; y -= f*dfdy*0.001;
+        particles[i*2]=x; particles[i*2+1]=y;
+        ctx.fillRect(x*Math.max(w,h)*1.1, y*Math.max(w,h)*1.1, 1.5, 1.5);
+      }
+      ctx.fill();
+      animId = requestAnimationFrame(render);
+    };
+    animId = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(animId);
+  }, [bgcolor]);
+
+  return <canvas ref={canvasRef} className="absolute inset-0 z-[5] w-full h-full" />;
+}
+
+function NatureMusicPlayer({ track, onClose }: { track: any; onClose: () => void }) {
+  const [isPlaying, setIsPlaying] = useState(true);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const imageUrl = track.corverimg;
+  const frameRef = useRef(0);
+  const chunksRef = useRef<{sx:number;sy:number;sw:number;sh:number;tx:number;ty:number;vx:number;vy:number;angle:number;r:number;g:number;b:number}[]>([]);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const chunksReadyRef = useRef(false);
+
+  // Load image once
+  useEffect(() => {
+    const img = new Image();
+    img.src = imageUrl;
+    img.onload = () => {
+      imgRef.current = img;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const imgSize = Math.max(w, h);
+      const imgX = (w - imgSize) / 2;
+      const imgY = (h - imgSize) / 2;
+      const chunkSize = 10;
+      const cols = Math.ceil(imgSize / chunkSize);
+      const rows = Math.ceil(imgSize / chunkSize);
+      const hex = (s: string) => ({ r: parseInt(s.slice(1,3),16), g: parseInt(s.slice(3,5),16), b: parseInt(s.slice(5,7),16) });
+      const bc = hex(track.bgcolor);
+
+      const chunks: typeof chunksRef.current = [];
+      for (let r = 0; r < rows; r++) {
+        for (let cl = 0; cl < cols; cl++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 0.3 + Math.random() * 1.2;
+          // Use bgcolor with random variation
+          chunks.push({
+            sx: (cl / cols) * img.naturalWidth,
+            sy: (r / rows) * img.naturalHeight,
+            sw: img.naturalWidth / cols,
+            sh: img.naturalHeight / rows,
+            tx: imgX + cl * chunkSize,
+            ty: imgY + r * chunkSize,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            angle,
+            r: Math.min(255, Math.max(0, bc.r + (Math.random()-0.5) * 40)),
+            g: Math.min(255, Math.max(0, bc.g + (Math.random()-0.5) * 40)),
+            b: Math.min(255, Math.max(0, bc.b + (Math.random()-0.5) * 40))
+          });
+        }
+      }
+      chunksRef.current = chunks;
+      chunksReadyRef.current = true;
+    };
+  }, [imageUrl]);
+
+  // Canvas render loop
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+    let animId: number;
+    const w = window.innerWidth, h = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = w * dpr; canvas.height = h * dpr;
+    canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+    ctx.scale(dpr, dpr);
+
+    const hex = (s: string) => ({ r: parseInt(s.slice(1,3),16), g: parseInt(s.slice(3,5),16), b: parseInt(s.slice(5,7),16) });
+    const c = hex(track.bgcolor);
+
+    let n = 5, m = 4;
+    const patterns = [[5,4],[7,3],[6,6],[8,5],[4,7],[9,4],[5,8],[7,7]];
+
+    const imgSize = Math.max(w, h);
+    const imgX = (w - imgSize) / 2;
+    const imgY = (h - imgSize) / 2;
+    const chunkSize = 6;
+    const dissolveStart = 30;
+    const dissolveSpeed = 0.008;
+    const chladniStart = 160; // frame when Chladni mode begins
+
+    // Per-chunk Chladni state
+    let chladniInit = false;
+    const cx = 0.5, cy = 0.5;
+
+    const render = () => {
+      frameRef.current++;
+      const frame = frameRef.current;
+      const pidx = Math.floor(frame / 120) % patterns.length;
+      const [tn, tm] = patterns[pidx];
+      n += (tn - n) * 0.02;
+      m += (tm - m) * 0.02;
+
+      // Background
+      ctx.globalCompositeOperation = 'source-over';
+      const pulse = 0.7 + Math.sin(frame * 0.012) * 0.1;
+      const grad = ctx.createRadialGradient(w*0.5, h*0.5, 0, w*0.5, h*0.5, Math.max(w,h)*0.7);
+      grad.addColorStop(0, `rgba(${c.r+20},${c.g+15},${c.b+10},${pulse})`);
+      grad.addColorStop(0.5, `rgba(${c.r},${c.g},${c.b},1)`);
+      grad.addColorStop(1, `rgba(${Math.max(0,c.r-40)},${Math.max(0,c.g-40)},${Math.max(0,c.b-40)},1)`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+
+      const img = imgRef.current;
+      const chunks = chunksRef.current;
+      const ready = chunksReadyRef.current && img && img.complete;
+
+      if (ready) {
+        // Init Chladni positions on first frame of phase 3
+        if (frame >= chladniStart && !chladniInit) {
+          chladniInit = true;
+          for (const ch of chunks) {
+            // Store current scattered position as Chladni starting point
+            (ch as any).px = ch.tx + ch.vx * 80;
+            (ch as any).py = ch.ty + ch.vy * 80;
+            (ch as any).vx2 = (Math.random() - 0.5) * 0.5;
+            (ch as any).vy2 = (Math.random() - 0.5) * 0.5;
+          }
+        }
+
+        const dissolveProgress = Math.min(1, Math.max(0, (frame - dissolveStart) * dissolveSpeed));
+
+        // Phase 1 & 2: Solid image + dissolve
+        if (frame < chladniStart) {
+          // Solid image fading out
+          if (dissolveProgress < 1) {
+            ctx.globalAlpha = 1 - dissolveProgress;
+            ctx.drawImage(img, imgX, imgY, imgSize, imgSize);
+            ctx.globalAlpha = 1;
+          }
+
+          // Scattered chunks
+          for (const ch of chunks) {
+            const ccx = (ch.tx - imgX) / imgSize - 0.5;
+            const ccy = (ch.ty - imgY) / imgSize - 0.5;
+            const dist = Math.sqrt(ccx*ccx + ccy*ccy);
+            const cp = Math.max(0, Math.min(1, (dissolveProgress - dist * 0.5) / 0.6));
+            if (cp <= 0) continue;
+
+            const dx = ch.vx * cp * 80;
+            const dy = ch.vy * cp * 80;
+
+            const nx = (ch.tx + dx) / w;
+            const ny = (ch.ty + dy) / h;
+            const f = Math.sin(n*Math.PI*nx)*Math.sin(m*Math.PI*ny) + Math.sin(m*Math.PI*nx)*Math.sin(n*Math.PI*ny);
+            const wx = f * Math.cos(ch.angle) * 15 * cp;
+            const wy = f * Math.sin(ch.angle) * 15 * cp;
+
+            ctx.globalAlpha = Math.max(0.15, 0.9 - cp * 0.4);
+            ctx.drawImage(img, ch.sx, ch.sy, ch.sw, ch.sh, ch.tx + dx + wx, ch.ty + dy + wy, chunkSize + 1, chunkSize + 1);
+          }
+        } else {
+          // Phase 3: Chladni particles
+          const chStrength = Math.min(1, (frame - chladniStart) / 60); // ramp up over 1s
+
+          for (const ch of chunks) {
+            let px = (ch as any).px;
+            let py = (ch as any).py;
+            let vx = (ch as any).vx2;
+            let vy = (ch as any).vy2;
+
+            // Chladni force
+            const f = Math.sin(n*Math.PI*(px/w))*Math.sin(m*Math.PI*(py/h)) + Math.sin(m*Math.PI*(px/w))*Math.sin(n*Math.PI*(py/h));
+            const dfdx = n*Math.PI*Math.cos(n*Math.PI*(px/w))*Math.sin(m*Math.PI*(py/h)) + m*Math.PI*Math.cos(m*Math.PI*(px/w))*Math.sin(n*Math.PI*(py/h));
+            const dfdy = m*Math.PI*Math.sin(n*Math.PI*(px/w))*Math.cos(m*Math.PI*(py/h)) + n*Math.PI*Math.sin(m*Math.PI*(px/w))*Math.cos(n*Math.PI*(py/h));
+
+            // Elastic return to original position
+            const dx = ch.tx - px;
+            const dy = ch.ty - py;
+
+            vx += dx * 0.0005 - f * dfdx * 0.0008 * chStrength + (Math.random()-0.5)*0.002;
+            vy += dy * 0.0005 - f * dfdy * 0.0008 * chStrength + (Math.random()-0.5)*0.002;
+            vx *= 0.97;
+            vy *= 0.97;
+            px += vx;
+            py += vy;
+
+            (ch as any).px = px;
+            (ch as any).py = py;
+            (ch as any).vx2 = vx;
+            (ch as any).vy2 = vy;
+
+            // Distance from center for alpha and size
+            const dist = Math.sqrt((px/w - cx)**2 + (py/h - cy)**2);
+            const alpha = Math.max(0.1, 0.85 - dist * 0.8);
+            // Shrink from chunkSize to 1.5px over the Chladni phase
+            const shrinkProgress = Math.min(1, (frame - chladniStart) / 90);
+            const size = Math.max(1.5, (chunkSize + 1) * (1 - shrinkProgress * 0.75) * (1 - dist * 0.3));
+
+            ctx.globalAlpha = alpha * chStrength;
+            ctx.drawImage(img, ch.sx, ch.sy, ch.sw, ch.sh, px, py, size, size);
+          }
+        }
+
+        ctx.globalAlpha = 1;
+      }
+
+      animId = requestAnimationFrame(render);
+    };
+    animId = requestAnimationFrame(render);
+    return () => { cancelAnimationFrame(animId); frameRef.current = 0; };
+  }, [track.bgcolor]);
+
+  return (
+    <div className="fixed inset-0 z-50" style={{ backgroundColor: track.bgcolor }}>
+      {/* Chladni particles (image pixelated) */}
+      <canvas ref={canvasRef} className="absolute inset-0 z-[1]" />
+
+      <main className="relative z-10 w-full max-w-[420px] h-full flex flex-col p-8">
+        {/* Header */}
+        <header className="flex items-center justify-between text-white/80 mb-4 shrink-0">
+          <button onClick={onClose} className="p-2 rounded-full active:bg-white/10"><span className="text-xl">✕</span></button>
+          <div className="text-xs font-semibold tracking-widest uppercase text-white/90">{track.typename}</div>
+          <div className="w-10" />
+        </header>
+
+        {/* Spacer - particles fill this area */}
+        <div className="flex-1" />
+
+        {/* Track Info */}
+        <div className="flex-1" />
+        <div className="text-center shrink-0 mb-4">
+          <h1 className="text-xl font-light text-white/90 tracking-wider drop-shadow-lg">{track.title}</h1>
+          <p className="text-xs text-white/50 font-extralight tracking-wider mt-1 drop-shadow-lg">{track.typename}</p>
+        </div>
+
+        {/* Play/Pause */}
+        <div className="flex justify-center pb-6 shrink-0">
+          <button className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center active:scale-95 transition-transform border border-white/20"
+            onClick={() => setIsPlaying(!isPlaying)}>
+            <span className="text-white text-xl">{isPlaying ? '⏸' : '▶'}</span>
+          </button>
+        </div>
+      </main>
     </div>
   );
 }
