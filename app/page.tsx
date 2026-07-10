@@ -146,7 +146,7 @@ export default function App() {
         {/* Main Content */}
         <main className="relative flex-1 flex flex-col justify-center px-8 pb-24">
           {connState !== 'connected' ? (
-            <div className="flex flex-col items-center justify-center space-y-10">
+            <div className="flex flex-col items-center justify-center space-y-10 min-h-[420px]">
               {/* Logo */}
               <div className="text-center space-y-6">
                 <img src="logo.png" alt="Dreamlight" className="h-12 md:h-16 w-auto mx-auto drop-shadow-sm opacity-90" />
@@ -170,7 +170,7 @@ export default function App() {
               {/* Connecting: animated ring progress */}
               {connState === 'connecting' && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center space-y-8">
-                  <div className="relative w-32 h-32 flex items-center justify-center">
+                  <div className="relative w-48 h-48 flex items-center justify-center">
                     <svg className="w-full h-full -rotate-90" viewBox="0 0 128 128">
                       <circle cx="64" cy="64" r="58" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2" />
                       <circle cx="64" cy="64" r="58" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round"
@@ -230,7 +230,7 @@ export default function App() {
             <div className="absolute inset-0 top-[2px] flex">
               <AnimatePresence>
                 {!panelTab && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.15 } }}
                     className="flex-1 flex flex-col items-center justify-center px-8"
                   >
                     <div className="w-full max-w-sm space-y-10 mb-14">
@@ -263,8 +263,8 @@ export default function App() {
                         { id: 'settings' as Tab, label: '睡眠设置', sub: '设备管理' },
                       ].map((item) => (
                         <button key={item.id} onClick={() => setPanelTab(item.id as Tab)} className="text-left group py-2">
-                          <p className="text-base text-white/50 font-light tracking-wider whitespace-nowrap">{item.label}</p>
-                          <p className="text-[13px] text-white/30 font-extralight tracking-wider mt-1 whitespace-nowrap">{item.sub}</p>
+      <p className="text-base text-white/80 font-light tracking-wider whitespace-nowrap">{item.label}</p>
+      <p className="text-[13px] text-white/60 font-extralight tracking-wider mt-1 whitespace-nowrap">{item.sub}</p>
                         </button>
                       ))}
                     </div>
@@ -272,19 +272,26 @@ export default function App() {
                 )}
               </AnimatePresence>
               <div className="flex-1 relative overflow-hidden">
+                <AnimatePresence>
                 {panelTab && (
-                  <div className="absolute inset-0 z-20 overflow-y-auto no-scrollbar">
+                  <motion.div 
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20, transition: { duration: 0.15 } }}
+                    className="absolute inset-0 z-20 overflow-y-auto no-scrollbar"
+                  >
                     <div className="px-5 pt-3 pb-8">
                       <button onClick={() => setPanelTab(null)} className="w-7 h-7 rounded-full bg-white/[0.08] hover:bg-white/[0.15] flex items-center justify-center transition-colors mb-4">
                         <span className="text-white/50 text-xs">✕</span>
                       </button>
-                      {panelTab === 'alarms' && <><h3 className="text-lg text-white/70 font-light tracking-wider mb-4">唤醒闹钟</h3><AlarmsView alarms={alarms} setAlarms={setAlarms} /></>}
-                      {panelTab === 'jetlag' && <><h3 className="text-lg text-white/70 font-light tracking-wider mb-4">时差调节</h3><JetLagView alarms={alarms} setAlarms={setAlarms} setActiveTab={setActiveTab} /></>}
+        {panelTab === 'alarms' && <><h3 className="text-xl text-white/80 font-light tracking-wider mb-4">唤醒闹钟</h3><AlarmsView alarms={alarms} setAlarms={setAlarms} /></>}
+        {panelTab === 'jetlag' && <><h3 className="text-xl text-white/80 font-light tracking-wider mb-4">时差调节</h3><JetLagView alarms={alarms} setAlarms={setAlarms} setActiveTab={setActiveTab} /></>}
                       {panelTab === 'music' && <MusicView onPlayTrack={(id) => setPlayingTrackId(id)} />}
                       {panelTab === 'settings' && <SettingsView />}
                     </div>
-                  </div>
+                  </motion.div>
                 )}
+                </AnimatePresence>
               </div>
             </div>
            )}
@@ -1195,7 +1202,7 @@ function MusicView({ onPlayTrack }: { onPlayTrack?: (id: number) => void }) {
     <div className="flex flex-col h-full">
       {/* Grid view */}
       <>
-          <h3 className="text-lg text-white/80 font-light tracking-wider">助眠音乐</h3>
+           <h3 className="text-xl text-white/80 font-light tracking-wider">助眠音乐</h3>
           <div className="flex space-x-2 overflow-x-auto no-scrollbar mt-3">
             <button onClick={() => setCategory(null)} className={`shrink-0 px-3 py-1.5 text-[11px] tracking-wider font-light rounded-full border ${!category?'border-white/30 bg-white/10 text-white':'border-white/[0.06] text-white/40'}`}>全部</button>
             {categories.map(cat => (
@@ -1208,11 +1215,11 @@ function MusicView({ onPlayTrack }: { onPlayTrack?: (id: number) => void }) {
                 className="relative rounded-2xl text-left h-40 overflow-hidden active:scale-[0.97] transition-transform"
                 style={{background:`linear-gradient(180deg,${t.bgcolor}40 0%,${t.bgcolor}10 100%)`}}
               >
-                <div className="absolute inset-0 opacity-25">{t.corverimg&&<img src={t.corverimg} alt="" className="w-full h-full object-cover"/>}</div>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"/>
-                <div className="absolute bottom-0 left-0 right-0 p-3">
-                  <p className="text-xs text-white/70 font-light tracking-wider truncate">{t.title}</p>
-                  <p className="text-[9px] text-white/30 font-extralight mt-0.5">{t.typename}</p>
+              <div className="absolute inset-0 opacity-60">{t.corverimg&&<img src={t.corverimg} alt="" className="w-full h-full object-cover"/>}</div>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"/>
+              <div className="absolute bottom-0 left-0 right-0 p-3">
+                <p className="text-sm text-white/90 font-medium tracking-wider truncate">{t.title}</p>
+                <p className="text-[11px] text-white/50 font-light mt-0.5">{t.typename}</p>
                 </div>
               </button>
             ))}
@@ -1259,7 +1266,7 @@ function MusicCardCanvas({ bgcolor, active, seed, title }: { bgcolor:string; act
 function SettingsView() {
   return (
     <div className="flex flex-col space-y-6">
-      <h3 className="text-lg text-white/80 font-light tracking-wider">设置</h3>
+       <h3 className="text-xl text-white/80 font-light tracking-wider">设置</h3>
       <div className="space-y-3">
         {[{label:'设备信息',desc:'Dreamlight A1 · 固件 v2.1'},{label:'蓝牙连接',desc:'已连接 · 信号强'},{label:'亮度调节',desc:'自适应'},{label:'关于应用',desc:'版本 1.0.0'}].map(s=>(
           <div key={s.label} className="flex justify-between items-center py-3 border-b border-white/[0.06]">
@@ -1347,9 +1354,11 @@ function NowPlayingParticles({ bgcolor }: { bgcolor: string }) {
 
 function NatureMusicPlayer({ track, onClose }: { track: any; onClose: () => void }) {
   const [isPlaying, setIsPlaying] = useState(true);
+  const isPlayingRef = useRef(true);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const imageUrl = track.corverimg;
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
   const frameRef = useRef(0);
   const chunksRef = useRef<{sx:number;sy:number;sw:number;sh:number;tx:number;ty:number;vx:number;vy:number;angle:number;r:number;g:number;b:number}[]>([]);
   const imgRef = useRef<HTMLImageElement | null>(null);
@@ -1414,8 +1423,9 @@ function NatureMusicPlayer({ track, onClose }: { track: any; onClose: () => void
     const hex = (s: string) => ({ r: parseInt(s.slice(1,3),16), g: parseInt(s.slice(3,5),16), b: parseInt(s.slice(5,7),16) });
     const c = hex(track.bgcolor);
 
-    let n = 5, m = 4;
-    const patterns = [[5,4],[7,3],[6,6],[8,5],[4,7],[9,4],[5,8],[7,7]];
+    let n = 2, m = 3;
+    const patterns = [[2,3],[4,5],[7,2],[5,5]];
+    let lastTime = performance.now();
 
     const imgSize = Math.max(w, h);
     const imgX = (w - imgSize) / 2;
@@ -1425,13 +1435,18 @@ function NatureMusicPlayer({ track, onClose }: { track: any; onClose: () => void
     const dissolveSpeed = 0.008;
     const chladniStart = 160;
 
-    const render = () => {
+    const render = (time: number) => {
+      if (!isPlayingRef.current) { animId = requestAnimationFrame(render); return; }
+
+      const dt = Math.min(time - lastTime, 50);
+      lastTime = time;
+      const fpsRatio = dt / (1000 / 60);
       frameRef.current++;
       const frame = frameRef.current;
-      const pidx = Math.floor(frame / 120) % patterns.length;
+      const pidx = Math.floor(frame / 200) % patterns.length;
       const [tn, tm] = patterns[pidx];
-      n += (tn - n) * 0.02;
-      m += (tm - m) * 0.02;
+      n += (tn - n) * 0.008 * fpsRatio;
+      m += (tm - m) * 0.008 * fpsRatio;
 
       // Background
       ctx.globalCompositeOperation = 'source-over';
@@ -1502,8 +1517,8 @@ function NatureMusicPlayer({ track, onClose }: { track: any; onClose: () => void
           const targetT = 0.5 * (Math.PI / 2);
           const a = Math.cos(targetT);
           const b = Math.sin(targetT);
-          const vibration = 0.001;
-          const stepSize = 0.001;
+          const vibration = 0.001 * fpsRatio;
+          const stepSize = 0.001 * fpsRatio;
 
           for (const ch of chunks) {
             let px = (ch as any).px;
@@ -1577,36 +1592,36 @@ function NatureMusicPlayer({ track, onClose }: { track: any; onClose: () => void
     return () => { cancelAnimationFrame(animId); frameRef.current = 0; };
   }, [track.bgcolor]);
 
+  // 随机背景色（跟首页一样 - 两个 nightColor 做流动渐变）
+  const bgColor1Ref = useRef<{r:number;g:number;b:number} | null>(null);
+  const bgColor2Ref = useRef<{r:number;g:number;b:number} | null>(null);
+  if (!bgColor1Ref.current) {
+    const nightColors = [
+      { r: 15, g: 20, b: 80 }, { r: 40, g: 10, b: 70 }, { r: 10, g: 50, b: 70 },
+      { r: 50, g: 15, b: 50 }, { r: 10, g: 35, b: 60 }, { r: 30, g: 10, b: 60 },
+      { r: 20, g: 40, b: 80 }, { r: 45, g: 25, b: 65 }, { r: 60, g: 25, b: 15 },
+      { r: 15, g: 40, b: 30 }, { r: 55, g: 15, b: 35 }, { r: 20, g: 30, b: 50 },
+    ];
+    bgColor1Ref.current = nightColors[Math.floor(Math.random() * nightColors.length)];
+    bgColor2Ref.current = nightColors[Math.floor(Math.random() * nightColors.length)];
+  }
+
   return (
-    <div className="fixed inset-0 z-50" style={{ backgroundColor: track.bgcolor }}>
-      {/* Chladni particles (image pixelated) */}
+    <div className="fixed inset-0 z-50" style={{ background: `linear-gradient(135deg, rgb(${bgColor1Ref.current!.r},${bgColor1Ref.current!.g},${bgColor1Ref.current!.b}), rgb(${bgColor2Ref.current!.r},${bgColor2Ref.current!.g},${bgColor2Ref.current!.b}))` }} onClick={() => setIsPlaying(!isPlaying)}>
       <canvas ref={canvasRef} className="absolute inset-0 z-[1]" />
 
-      <main className="relative z-10 w-full max-w-[420px] h-full flex flex-col p-8">
-        {/* Header */}
+      <main className="relative z-10 w-full max-w-[420px] h-full flex flex-col p-8 pointer-events-none">
         <header className="flex items-center justify-between text-white/80 mb-4 shrink-0">
-          <button onClick={onClose} className="p-2 rounded-full active:bg-white/10"><span className="text-xl">✕</span></button>
+          <button onClick={(e) => { e.stopPropagation(); onClose(); }} className="w-7 h-7 rounded-full bg-white/[0.08] hover:bg-white/[0.15] flex items-center justify-center transition-colors pointer-events-auto"><span className="text-white/50 text-xs">✕</span></button>
           <div className="text-xs font-semibold tracking-widest uppercase text-white/90">{track.typename}</div>
           <div className="w-10" />
         </header>
-
-        {/* Spacer - particles fill this area */}
-        <div className="flex-1" />
-
-        {/* Track Info */}
         <div className="flex-1" />
         <div className="text-center shrink-0 mb-4">
-          <h1 className="text-xl font-light text-white/90 tracking-wider drop-shadow-lg">{track.title}</h1>
-          <p className="text-xs text-white/50 font-extralight tracking-wider mt-1 drop-shadow-lg">{track.typename}</p>
+          <h1 className="text-3xl font-light text-white/95 tracking-wider drop-shadow-lg">{track.title}</h1>
+          <p className="text-sm text-white/50 font-light tracking-wider mt-1.5 drop-shadow-lg">{track.typename}</p>
         </div>
-
-        {/* Play/Pause */}
-        <div className="flex justify-center pb-6 shrink-0">
-          <button className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center active:scale-95 transition-transform border border-white/20"
-            onClick={() => setIsPlaying(!isPlaying)}>
-            <span className="text-white text-xl">{isPlaying ? '⏸' : '▶'}</span>
-          </button>
-        </div>
+        <div className="flex-1" />
       </main>
     </div>
   );
