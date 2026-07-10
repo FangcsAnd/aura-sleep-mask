@@ -1503,13 +1503,7 @@ function NatureMusicPlayer({ track, onClose }: { track: any; onClose: () => void
             const fy = ch.ty + dy + wy;
 
             ctx.globalAlpha = Math.max(0.15, 0.9 - cp * 0.4);
-            ctx.save();
-            ctx.beginPath();
-            const chunkRadius = (chunkSize + 1) / 2;
-            ctx.arc(fx + chunkRadius, fy + chunkRadius, chunkRadius, 0, Math.PI * 2);
-            ctx.clip();
             ctx.drawImage(img, ch.sx, ch.sy, ch.sw, ch.sh, fx, fy, chunkSize + 1, chunkSize + 1);
-            ctx.restore();
             
             // 保存实际绘制位置，Phase 3 从这里继续
             (ch as any).px = fx;
@@ -1582,13 +1576,7 @@ function NatureMusicPlayer({ track, onClose }: { track: any; onClose: () => void
             const size = Math.max(1.0, (chunkSize + 1) * (1 - shrinkProgress * 0.75));
 
             ctx.globalAlpha = 0.8;
-            ctx.save();
-            ctx.beginPath();
-            const ptRadius = size / 2;
-            ctx.arc(px + ptRadius, py + ptRadius, ptRadius, 0, Math.PI * 2);
-            ctx.clip();
             ctx.drawImage(img, ch.sx, ch.sy, ch.sw, ch.sh, px, py, size, size);
-            ctx.restore();
           }
 
           ctx.globalAlpha = 1;
