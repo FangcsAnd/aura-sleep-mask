@@ -1,7 +1,6 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  basePath: '/aura-sleep-mask',
   reactStrictMode: true,
   eslint: {
     ignoreDuringBuilds: true,

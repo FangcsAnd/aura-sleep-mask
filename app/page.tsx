@@ -1423,11 +1423,7 @@ function NatureMusicPlayer({ track, onClose }: { track: any; onClose: () => void
     const chunkSize = 6;
     const dissolveStart = 30;
     const dissolveSpeed = 0.008;
-    const chladniStart = 160; // frame when Chladni mode begins
-
-    // Per-chunk Chladni state
-    let chladniInit = false;
-    const cx = 0.5, cy = 0.5;
+    const chladniStart = 160;
 
     const render = () => {
       frameRef.current++;
@@ -1447,22 +1443,16 @@ function NatureMusicPlayer({ track, onClose }: { track: any; onClose: () => void
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, w, h);
 
+      // 首页风格：暗色拖尾（让粒子产生流线）
+      ctx.fillStyle = `rgba(4, 4, 15, 0.15)`;
+      ctx.fillRect(0, 0, w, h);
+
       const img = imgRef.current;
       const chunks = chunksRef.current;
       const ready = chunksReadyRef.current && img && img.complete;
 
       if (ready) {
-        // Init Chladni positions on first frame of phase 3
-        if (frame >= chladniStart && !chladniInit) {
-          chladniInit = true;
-          for (const ch of chunks) {
-            // Store current scattered position as Chladni starting point
-            (ch as any).px = ch.tx + ch.vx * 80;
-            (ch as any).py = ch.ty + ch.vy * 80;
-            (ch as any).vx2 = (Math.random() - 0.5) * 0.5;
-            (ch as any).vy2 = (Math.random() - 0.5) * 0.5;
-          }
-        }
+        // Phase 3 粒子初始位置由 Phase 1-2 保存，不再单独初始化
 
         const dissolveProgress = Math.min(1, Math.max(0, (frame - dissolveStart) * dissolveSpeed));
 
@@ -1492,50 +1482,90 @@ function NatureMusicPlayer({ track, onClose }: { track: any; onClose: () => void
             const wx = f * Math.cos(ch.angle) * 15 * cp;
             const wy = f * Math.sin(ch.angle) * 15 * cp;
 
+            const fx = ch.tx + dx + wx;
+            const fy = ch.ty + dy + wy;
+
             ctx.globalAlpha = Math.max(0.15, 0.9 - cp * 0.4);
-            ctx.drawImage(img, ch.sx, ch.sy, ch.sw, ch.sh, ch.tx + dx + wx, ch.ty + dy + wy, chunkSize + 1, chunkSize + 1);
+            ctx.drawImage(img, ch.sx, ch.sy, ch.sw, ch.sh, fx, fy, chunkSize + 1, chunkSize + 1);
+            
+            // 保存实际绘制位置，Phase 3 从这里继续
+            (ch as any).px = fx;
+            (ch as any).py = fy;
           }
         } else {
-          // Phase 3: Chladni particles
-          const chStrength = Math.min(1, (frame - chladniStart) / 60); // ramp up over 1s
+          // Phase 3: Chladni particles（首页风格流动 + drawImage保留图片颜色）
+          const chStrength = Math.min(1, (frame - chladniStart) / 60);
+          
+          // 首页风格：screen 混合
+          ctx.globalCompositeOperation = 'screen';
+          
+          const targetT = 0.5 * (Math.PI / 2);
+          const a = Math.cos(targetT);
+          const b = Math.sin(targetT);
+          const vibration = 0.001;
+          const stepSize = 0.001;
 
           for (const ch of chunks) {
             let px = (ch as any).px;
             let py = (ch as any).py;
-            let vx = (ch as any).vx2;
-            let vy = (ch as any).vy2;
+            // 兜底：Phase 1-2 没保存位置时用初始散开位置
+            if (px === undefined) {
+              px = ch.tx + ch.vx * 80;
+              py = ch.ty + ch.vy * 80;
+            }
 
-            // Chladni force
-            const f = Math.sin(n*Math.PI*(px/w))*Math.sin(m*Math.PI*(py/h)) + Math.sin(m*Math.PI*(px/w))*Math.sin(n*Math.PI*(py/h));
-            const dfdx = n*Math.PI*Math.cos(n*Math.PI*(px/w))*Math.sin(m*Math.PI*(py/h)) + m*Math.PI*Math.cos(m*Math.PI*(px/w))*Math.sin(n*Math.PI*(py/h));
-            const dfdy = m*Math.PI*Math.sin(n*Math.PI*(px/w))*Math.cos(m*Math.PI*(py/h)) + n*Math.PI*Math.sin(m*Math.PI*(px/w))*Math.cos(n*Math.PI*(py/h));
+            // 首页风格：归一化到 0-1
+            let x = (px - imgX) / imgSize;
+            let y = (py - imgY) / imgSize;
 
-            // Elastic return to original position
-            const dx = ch.tx - px;
-            const dy = ch.ty - py;
+            // 首页风格：随机震动
+            x += (Math.random() - 0.5) * vibration;
+            y += (Math.random() - 0.5) * vibration;
 
-            vx += dx * 0.0005 - f * dfdx * 0.0008 * chStrength + (Math.random()-0.5)*0.002;
-            vy += dy * 0.0005 - f * dfdy * 0.0008 * chStrength + (Math.random()-0.5)*0.002;
-            vx *= 0.97;
-            vy *= 0.97;
-            px += vx;
-            py += vy;
+            if (x < 0) x += 1; if (x > 1) x -= 1;
+            if (y < 0) y += 1; if (y > 1) y -= 1;
+
+            // 首页风格：直接力更新（在归一化空间）
+            const piX = Math.PI * x;
+            const piY = Math.PI * y;
+            const sinNX = Math.sin(n * piX);
+            const cosNX = Math.cos(n * piX);
+            const sinMY = Math.sin(m * piY);
+            const cosMY = Math.cos(m * piY);
+            const sinMX = Math.sin(m * piX);
+            const cosMX = Math.cos(m * piX);
+            const sinNY = Math.sin(n * piY);
+            const cosNY = Math.cos(n * piY);
+
+            const fval = a * sinNX * sinMY + b * sinMX * sinNY;
+            const dfdx = a * n * Math.PI * cosNX * sinMY + b * m * Math.PI * cosMX * sinNY;
+            const dfdy = a * m * Math.PI * sinNX * cosMY + b * n * Math.PI * sinMX * cosNY;
+
+            // 首页风格：0.1% 随机重置
+            if (Math.random() < 0.001) {
+              x = Math.random();
+              y = Math.random();
+            } else {
+              x -= fval * dfdx * stepSize;
+              y -= fval * dfdy * stepSize;
+            }
+
+            // 转回屏幕坐标
+            px = imgX + x * imgSize;
+            py = imgY + y * imgSize;
 
             (ch as any).px = px;
             (ch as any).py = py;
-            (ch as any).vx2 = vx;
-            (ch as any).vy2 = vy;
 
-            // Distance from center for alpha and size
-            const dist = Math.sqrt((px/w - cx)**2 + (py/h - cy)**2);
-            const alpha = Math.max(0.1, 0.85 - dist * 0.8);
-            // Shrink from chunkSize to 1.5px over the Chladni phase
             const shrinkProgress = Math.min(1, (frame - chladniStart) / 90);
-            const size = Math.max(1.5, (chunkSize + 1) * (1 - shrinkProgress * 0.75) * (1 - dist * 0.3));
+            const size = Math.max(1.0, (chunkSize + 1) * (1 - shrinkProgress * 0.75));
 
-            ctx.globalAlpha = alpha * chStrength;
+            ctx.globalAlpha = 0.8 * chStrength;
             ctx.drawImage(img, ch.sx, ch.sy, ch.sw, ch.sh, px, py, size, size);
           }
+
+          ctx.globalAlpha = 1;
+          ctx.globalCompositeOperation = 'source-over';
         }
 
         ctx.globalAlpha = 1;
