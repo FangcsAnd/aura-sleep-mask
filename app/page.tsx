@@ -156,11 +156,11 @@ export default function App() {
               {/* Idle: connect button */}
               {connState === 'idle' && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center space-y-10">
-                  <button onClick={startConnect} className="group relative flex items-center justify-center w-48 h-48 outline-none cursor-pointer">
-                    <motion.div className="absolute inset-2 rounded-full border border-white/10" animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }} />
-                    <motion.div className="absolute inset-6 rounded-full border border-white/[0.06]" animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }} />
-                    <div className="absolute inset-8 rounded-full bg-white/[0.03] border border-white/20 flex items-center justify-center backdrop-blur-sm group-hover:bg-white/[0.06] transition-all duration-700">
-                      <Moon className="w-6 h-6 text-white/60 group-hover:text-white/90 transition-all duration-500" strokeWidth={0.5} />
+                  <button onClick={startConnect} className="group relative flex items-center justify-center w-32 h-32 outline-none cursor-pointer">
+                    <motion.div className="absolute inset-1 rounded-full border border-white/10" animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }} />
+                    <motion.div className="absolute inset-4 rounded-full border border-white/[0.06]" animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 0.5 }} />
+                    <div className="absolute inset-5 rounded-full bg-white/[0.03] border border-white/20 flex items-center justify-center backdrop-blur-sm group-hover:bg-white/[0.06] transition-all duration-700">
+                      <Moon className="w-4 h-4 text-white/60 group-hover:text-white/90 transition-all duration-500" strokeWidth={0.5} />
                     </div>
                   </button>
                   <span className="text-lg tracking-[0.3em] uppercase font-medium text-white/70">连接设备</span>
@@ -170,13 +170,13 @@ export default function App() {
               {/* Connecting: animated ring progress */}
               {connState === 'connecting' && (
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center space-y-8">
-                  <div className="relative w-48 h-48 flex items-center justify-center">
+                  <div className="relative w-32 h-32 flex items-center justify-center">
                     <svg className="w-full h-full -rotate-90" viewBox="0 0 128 128">
                       <circle cx="64" cy="64" r="58" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2" />
                       <circle cx="64" cy="64" r="58" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round"
                         strokeDasharray={2 * Math.PI * 58} strokeDashoffset={2 * Math.PI * 58 * (1 - connProgress / 100)} />
                     </svg>
-                    <Moon className="absolute w-6 h-6 text-white/50" strokeWidth={0.5} />
+                    <Moon className="absolute w-4 h-4 text-white/50" strokeWidth={0.5} />
                   </div>
                   <p className="text-base text-white/50 font-light tracking-wider">正在搜索设备</p>
                 </motion.div>
@@ -194,8 +194,8 @@ export default function App() {
                     className="w-full max-w-xs flex flex-col items-center space-y-8 text-center"
                   >
                     <div className="flex flex-col items-center space-y-3">
-                      <div className="w-16 h-16 rounded-full border border-white/15 flex items-center justify-center">
-                        <Moon className="w-6 h-6 text-white/40" strokeWidth={0.5} />
+                      <div className="w-12 h-12 rounded-full border border-white/15 flex items-center justify-center">
+                        <Moon className="w-5 h-5 text-white/40" strokeWidth={0.5} />
                       </div>
                       <p className="text-lg text-white/60 font-light tracking-wider">连接失败</p>
                       <p className="text-xs text-white/30 font-extralight tracking-wider">请按以下步骤操作后重试</p>
@@ -1433,7 +1433,6 @@ function NatureMusicPlayer({ track, onClose }: { track: any; onClose: () => void
     const chunkSize = 6;
     const dissolveStart = 30;
     const dissolveSpeed = 0.008;
-    const chladniStart = 160;
 
     const render = (time: number) => {
       if (!isPlayingRef.current) { animId = requestAnimationFrame(render); return; }
@@ -1471,8 +1470,11 @@ function NatureMusicPlayer({ track, onClose }: { track: any; onClose: () => void
 
         const dissolveProgress = Math.min(1, Math.max(0, (frame - dissolveStart) * dissolveSpeed));
 
+        // Phase 3 提前到溶解80%时无缝启动
+        const inPhase3 = dissolveProgress > 0.5;
+
         // Phase 1 & 2: Solid image + dissolve
-        if (frame < chladniStart) {
+        if (!inPhase3) {
           // Solid image fading out
           if (dissolveProgress < 1) {
             ctx.globalAlpha = 1 - dissolveProgress;
@@ -1501,7 +1503,13 @@ function NatureMusicPlayer({ track, onClose }: { track: any; onClose: () => void
             const fy = ch.ty + dy + wy;
 
             ctx.globalAlpha = Math.max(0.15, 0.9 - cp * 0.4);
+            ctx.save();
+            ctx.beginPath();
+            const chunkRadius = (chunkSize + 1) / 2;
+            ctx.arc(fx + chunkRadius, fy + chunkRadius, chunkRadius, 0, Math.PI * 2);
+            ctx.clip();
             ctx.drawImage(img, ch.sx, ch.sy, ch.sw, ch.sh, fx, fy, chunkSize + 1, chunkSize + 1);
+            ctx.restore();
             
             // 保存实际绘制位置，Phase 3 从这里继续
             (ch as any).px = fx;
@@ -1509,8 +1517,6 @@ function NatureMusicPlayer({ track, onClose }: { track: any; onClose: () => void
           }
         } else {
           // Phase 3: Chladni particles（首页风格流动 + drawImage保留图片颜色）
-          const chStrength = Math.min(1, (frame - chladniStart) / 60);
-          
           // 首页风格：screen 混合
           ctx.globalCompositeOperation = 'screen';
           
@@ -1572,11 +1578,17 @@ function NatureMusicPlayer({ track, onClose }: { track: any; onClose: () => void
             (ch as any).px = px;
             (ch as any).py = py;
 
-            const shrinkProgress = Math.min(1, (frame - chladniStart) / 90);
+            const shrinkProgress = Math.min(1, (dissolveProgress - 0.5) * 2);
             const size = Math.max(1.0, (chunkSize + 1) * (1 - shrinkProgress * 0.75));
 
-            ctx.globalAlpha = 0.8 * chStrength;
+            ctx.globalAlpha = 0.8;
+            ctx.save();
+            ctx.beginPath();
+            const ptRadius = size / 2;
+            ctx.arc(px + ptRadius, py + ptRadius, ptRadius, 0, Math.PI * 2);
+            ctx.clip();
             ctx.drawImage(img, ch.sx, ch.sy, ch.sw, ch.sh, px, py, size, size);
+            ctx.restore();
           }
 
           ctx.globalAlpha = 1;
